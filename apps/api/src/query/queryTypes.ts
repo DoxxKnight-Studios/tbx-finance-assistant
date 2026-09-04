@@ -12,7 +12,9 @@ export type QueryGroupBy =
   | "category"
   | "status";
 
-export type QuerySortDirection = "asc" | "desc";
+export type QuerySortField =
+  | "amount"
+  | "count";
 
 export interface QueryFilters {
   vendorId?: string;
@@ -31,20 +33,15 @@ export interface QueryAggregationSpec {
 }
 
 export interface QuerySort {
-  field: "amount" | "count";
-  direction: QuerySortDirection;
+  field: QuerySortField;
+  direction: "asc" | "desc";
 }
 
 export interface QueryPlan {
   intent: IntentName;
-
   filters: QueryFilters;
-
   aggregation?: QueryAggregationSpec;
-
   groupBy?: QueryGroupBy;
-
   sort?: QuerySort;
-
   limit?: number;
 }

@@ -1,38 +1,70 @@
 import type { QueryPlan } from "./queryTypes.js";
 
+export interface BuiltQuery {
+  text: string;
+  params: unknown[];
+}
+
 export interface QueryTemplate {
   name: string;
+  build(plan: QueryPlan): BuiltQuery;
+}
 
-  build(plan: QueryPlan): {
-    text: string;
-    params: unknown[];
-  };
+function addCondition(
+  conditions: string[],
+  params: unknown[],
+  conditionSql: string,
+  value: unknown,
+): void {
+  params.push(value);
+
+  const placeholder = `$${params.length}`;
+
+  conditions.push(
+    conditionSql.replace("?", placeholder),
+  );
 }
 
 export const vendorPayoutTotalTemplate: QueryTemplate = {
   name: "vendor_payout_total",
 
   build(plan) {
-    const params: unknown[] = [];
     const conditions: string[] = [];
+    const params: unknown[] = [];
+
+    addCondition(
+      conditions,
+      params,
+      "t.transaction_type = ?",
+      "VENDOR_PAYOUT",
+    );
 
     if (plan.filters.vendorId) {
-      params.push(plan.filters.vendorId);
-      conditions.push(`t.vendor_id = $${params.length}`);
+      addCondition(
+        conditions,
+        params,
+        "t.vendor_id = ?",
+        plan.filters.vendorId,
+      );
     }
 
     if (plan.filters.startDate) {
-      params.push(plan.filters.startDate);
-      conditions.push(`t.transaction_date >= $${params.length}`);
+      addCondition(
+        conditions,
+        params,
+        "t.transaction_date >= ?",
+        plan.filters.startDate,
+      );
     }
 
     if (plan.filters.endDateExclusive) {
-      params.push(plan.filters.endDateExclusive);
-      conditions.push(`t.transaction_date < $${params.length}`);
+      addCondition(
+        conditions,
+        params,
+        "t.transaction_date < ?",
+        plan.filters.endDateExclusive,
+      );
     }
-
-    params.push("VENDOR_PAYOUT");
-    conditions.push(`t.transaction_type = $${params.length}`);
 
     return {
       text: `
