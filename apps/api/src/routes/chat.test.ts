@@ -99,9 +99,11 @@ describe("POST /api/chat", () => {
     const body = await response.json();
 
     expect(body.status).toBe("success");
-    expect(body.template).toBe("vendor_payout_total");
-    expect(body.plan.filters.startDate).toBe("2026-08-01");
-    expect(Array.isArray(body.rows)).toBe(true);
+    expect(typeof body.answer).toBe("string");
+    expect(body.answer).toContain("Acme Corporation");
+    expect(body.evidence.template).toBe("vendor_payout_total");
+    expect(body.evidence.period.start).toBe("2026-08-01");
+    expect(Array.isArray(body.evidence.rows)).toBe(true);
   });
 
   it("surfaces ambiguous-vendor clarification instead of silently picking one", async () => {
@@ -116,7 +118,7 @@ describe("POST /api/chat", () => {
     expect(response.status).toBe(200);
     const body = await response.json();
     expect(body.status).toBe("clarification");
-    expect(typeof body.question).toBe("string");
+    expect(typeof body.answer).toBe("string");
   });
 
   it("fails cleanly for an unimplemented executable query intent", async () => {

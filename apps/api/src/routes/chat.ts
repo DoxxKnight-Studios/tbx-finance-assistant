@@ -5,6 +5,7 @@ import {
   type FinanceIntentParser,
   type ProcessFinanceMessageResult,
 } from "../ai/messagePipeline.js";
+import { formatFinanceResponse } from "../response/responseFormatter.js";
 
 interface ChatRequestBody {
   message?: unknown;
@@ -74,7 +75,9 @@ export function createChatRouter(
       },
     );
 
-    res.status(statusCodeFor(result.status)).json(result);
+    res
+      .status(statusCodeFor(result.status))
+      .json(formatFinanceResponse(result));
   });
 
   return router;
