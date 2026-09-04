@@ -1,0 +1,58 @@
+import { ThemeToggle } from "@/components/theme/ThemeToggle";
+import type { ApiHealthState } from "@/hooks/useApiHealth";
+import type { Theme } from "@/hooks/useTheme";
+import { cn } from "@/lib/utils";
+
+function StatusIndicator({ status }: { status: ApiHealthState }) {
+  const label =
+    status === "online" ? "Connected" : status === "offline" ? "Offline" : "Connecting";
+
+  return (
+    <div className="hidden items-center gap-1.5 rounded-full border border-border/60 bg-background/50 px-2.5 py-1 text-xs text-muted-foreground sm:flex">
+      <span
+        className={cn(
+          "size-1.5 rounded-full",
+          status === "online" && "bg-emerald-500",
+          status === "offline" && "bg-destructive/70",
+          status === "checking" && "animate-pulse bg-muted-foreground/50",
+        )}
+      />
+      {label}
+    </div>
+  );
+}
+
+export function AppHeader({
+  theme,
+  onToggleTheme,
+  apiHealth,
+}: {
+  theme: Theme;
+  onToggleTheme: () => void;
+  apiHealth: ApiHealthState;
+}) {
+  return (
+    <header className="sticky top-0 z-20 border-b border-border/60 bg-background/70 backdrop-blur-md">
+      <div className="mx-auto flex h-14 max-w-[1050px] items-center justify-between px-4 sm:px-6">
+        <div className="flex items-center gap-2.5">
+          <div
+            className="flex size-7 items-center justify-center rounded-lg text-[13px] font-bold text-white shadow-brand-glow"
+            style={{ background: "var(--brand-gradient)" }}
+          >
+            T
+          </div>
+          <div className="leading-none">
+            <div className="text-[13px] font-semibold tracking-tight">
+              TBX <span className="text-muted-foreground font-normal">Finance</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <StatusIndicator status={apiHealth} />
+          <ThemeToggle theme={theme} onToggle={onToggleTheme} />
+        </div>
+      </div>
+    </header>
+  );
+}
