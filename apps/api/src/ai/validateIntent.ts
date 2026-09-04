@@ -12,6 +12,25 @@ export type ValidationOutcome =
   | { valid: true; data: IntentParserResult }
   | { valid: false; error: string };
 
+export function isValidCalendarDate(dateStr: string): boolean {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateStr);
+  if (!match) return false;
+
+  const year = parseInt(match[1], 10);
+  const month = parseInt(match[2], 10);
+  const day = parseInt(match[3], 10);
+
+  if (month < 1 || month > 12 || day < 1 || day > 31) return false;
+
+  // Timezone-safe calendar check using UTC
+  const date = new Date(Date.UTC(year, month - 1, day));
+  return (
+    date.getUTCFullYear() === year &&
+    date.getUTCMonth() === month - 1 &&
+    date.getUTCDate() === day
+  );
+}
+
 export function isValidDateRange(range: unknown): range is DateRange {
   if (!range || typeof range !== "object") return false;
   const r = range as Record<string, unknown>;
@@ -30,9 +49,8 @@ export function isValidDateRange(range: unknown): range is DateRange {
 
   if (r.type === "between") {
     if (typeof r.start !== "string" || typeof r.end !== "string") return false;
-    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
-    if (!dateRegex.test(r.start) || !dateRegex.test(r.end)) return false;
-    return true;
+    if (!isValidCalendarDate(r.start) || !isValidCalendarDate(r.end)) return false;
+    return r.start < r.end;
   }
 
   return false;

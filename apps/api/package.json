@@ -7,7 +7,8 @@
     "build": "tsc",
     "start": "node dist/server.js",
     "seed": "tsx src/seed/index.ts",
-    "seed:fixed": "tsx src/seed/index.ts --transactions 25000 --seed 20260904"
+    "seed:fixed": "tsx src/seed/index.ts --transactions 25000 --seed 20260904",
+    "test": "tsx --test tests/validator.test.ts"
   },
   "keywords": [],
   "author": "",
