@@ -11,46 +11,31 @@ function getClient(): GoogleGenAI {
   return clientInstance;
 }
 
-const CANDIDATE_MODELS = [
-  env.geminiModel,
-  "gemini-3.1-flash-lite",
-  "gemini-2.5-flash",
-  "gemini-2.0-flash",
-  "gemini-2.0-flash-lite",
-  "gemini-1.5-flash",
-];
-
 export async function callGemini(userPrompt: string): Promise<string> {
   const client = getClient();
+  const model = env.geminiModel;
 
-  const modelsToTry = Array.from(new Set(CANDIDATE_MODELS.filter(Boolean)));
-  let lastError: unknown = null;
+  try {
+    const response = await client.models.generateContent({
+      model,
+      contents: userPrompt,
+      config: {
+        systemInstruction: INTENT_SYSTEM_PROMPT,
+        responseMimeType: "application/json",
+        temperature: 0,
+      },
+    });
 
-  for (const model of modelsToTry) {
-    try {
-      const response = await client.models.generateContent({
-        model,
-        contents: userPrompt,
-        config: {
-          systemInstruction: INTENT_SYSTEM_PROMPT,
-          responseMimeType: "application/json",
-          temperature: 0,
-        },
-      });
-
-      const text = response.text;
-      if (text) {
-        return text;
-      }
-    } catch (err: unknown) {
-      lastError = err;
-      const msg = err instanceof Error ? err.message : String(err);
-      const isNotFound = msg.includes("NOT_FOUND") || msg.includes("404");
-      if (!isNotFound) {
-        throw err;
-      }
+    const text = response.text;
+    if (!text) {
+      throw new Error(`Gemini model "${model}" returned an empty response.`);
     }
-  }
 
-  throw lastError || new Error("All Gemini candidate models failed");
+    return text;
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    throw new Error(
+      `Gemini request failed using configured model "${model}": ${message}`
+    );
+  }
 }
