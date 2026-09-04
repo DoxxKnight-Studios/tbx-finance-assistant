@@ -1,11 +1,30 @@
-import "dotenv/config";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import dotenv from "dotenv";
 
-const databaseUrl = process.env.DATABASE_URL;
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+dotenv.config({ path: path.resolve(__dirname, "../../.env") });
+dotenv.config();
 
-if (!databaseUrl) {
-  throw new Error("DATABASE_URL is not configured");
-}
 
 export const env = {
-  databaseUrl,
+  get databaseUrl(): string {
+    const databaseUrl = process.env.DATABASE_URL;
+    if (!databaseUrl) {
+      throw new Error("DATABASE_URL is not configured");
+    }
+    return databaseUrl;
+  },
+
+  get geminiApiKey(): string {
+    const geminiApiKey = process.env.GEMINI_API_KEY;
+    if (!geminiApiKey) {
+      throw new Error("GEMINI_API_KEY is not configured");
+    }
+    return geminiApiKey;
+  },
+
+  get geminiModel(): string {
+    return process.env.GEMINI_MODEL || "gemini-3.1-flash-lite";
+  },
 };
