@@ -1,3 +1,5 @@
+import "dotenv/config";
+
 import {
   generateSeedData,
 } from "./generator";

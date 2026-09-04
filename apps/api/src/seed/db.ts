@@ -154,6 +154,18 @@ async function insertAccounts(
 async function deletePreviousSeedTransactions(
   client: PoolClient,
 ): Promise<number> {
+  await client.query(
+    `
+    DELETE FROM reconciliations r
+    USING transactions t
+    WHERE r.transaction_id = t.id
+      AND (
+        t.transaction_reference LIKE 'SEED-%'
+        OR t.transaction_reference LIKE 'TEST-%'
+      )
+    `,
+  );
+
   const result = await client.query(
     `
     DELETE FROM transactions
