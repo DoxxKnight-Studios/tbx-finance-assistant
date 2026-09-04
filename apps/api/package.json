@@ -4,13 +4,13 @@
   "main": "index.js",
   "scripts": {
     "dev": "tsx watch src/server.ts",
-    "build": "tsc",
+    "build": "tsc -p tsconfig.build.json",
     "start": "node dist/server.js",
     "seed": "tsx src/seed/index.ts",
     "seed:fixed": "tsx src/seed/index.ts --transactions 25000 --seed 20260904",
     "test": "vitest run",
     "verify:gemini": "tsx scripts/verifyGeminiParser.ts",
-    "test": "tsx --test tests/validator.test.ts"
+    "test:validator": "tsx --test tests/validator.test.ts"
   },
   "keywords": [],
   "author": "",
