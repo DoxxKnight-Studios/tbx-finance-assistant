@@ -9,14 +9,17 @@
     "seed": "tsx src/seed/index.ts",
     "seed:fixed": "tsx src/seed/index.ts --transactions 25000 --seed 20260904",
     "test": "vitest run",
-    "verify:gemini": "tsx scripts/verifyGeminiParser.ts"
+    "verify:gemini": "tsx scripts/verifyGeminiParser.ts",
+    "test": "tsx --test tests/validator.test.ts"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "@google/genai": "^2.21.0",
     "@neondatabase/serverless": "^1.1.0",
+    "ajv": "^8.20.0",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
