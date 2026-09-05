@@ -318,38 +318,6 @@ export const vendorPayoutLargestTemplate: QueryTemplate = {
   },
 };
 
-export const transactionAmountFilterTemplate: QueryTemplate = {
-  name: "transaction_amount_filter",
-
-  build(plan) {
-    const conditions: string[] = [];
-    const params: unknown[] = [];
-
-    if (plan.filters.amountLessThan !== undefined) {
-      addCondition(conditions, params, "t.amount < ?", plan.filters.amountLessThan);
-    }
-
-    if (plan.filters.vendorId) {
-      addCondition(conditions, params, "t.vendor_id = ?", plan.filters.vendorId);
-    }
-
-    if (plan.filters.category) {
-      addCondition(conditions, params, "t.category = ?", plan.filters.category);
-    }
-
-    addDateConditions(conditions, params, plan.filters);
-
-    return {
-      text: `
-        SELECT COUNT(*) AS count
-        FROM transactions t
-        WHERE ${conditions.length > 0 ? conditions.join("\nAND ") : "TRUE"}
-      `.trim(),
-      params,
-    };
-  },
-};
-
 export const transactionSpendTotalTemplate: QueryTemplate = {
   name: "transaction_spend_total",
   build(plan) {

@@ -35,6 +35,52 @@ function getClient(): GoogleGenAI {
   return client;
 }
 
+function isTransientModelError(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+
+  const candidate = error as { status?: unknown; message?: unknown };
+  const status = candidate.status;
+  const message = typeof candidate.message === "string" ? candidate.message : "";
+
+  return (
+    status === 429 ||
+    status === 500 ||
+    status === 503 ||
+    /UNAVAILABLE|RESOURCE_EXHAUSTED|high demand/i.test(message)
+  );
+}
+
+async function generateGeneralContent(
+  contents: string,
+  model: string,
+): Promise<{ text?: string }> {
+  const models = [model, env.personalSearchModel].filter(
+    (candidate, index, all) => all.indexOf(candidate) === index,
+  );
+  let lastError: unknown;
+
+  for (const candidate of models) {
+    try {
+      return await getClient().models.generateContent({
+        model: candidate,
+        contents,
+        config: {
+          systemInstruction: GENERAL_SYSTEM_PROMPT,
+          responseMimeType: "application/json",
+          temperature: 0.2,
+        },
+      });
+    } catch (error) {
+      lastError = error;
+      if (!isTransientModelError(error) || candidate === models.at(-1)) {
+        throw error;
+      }
+    }
+  }
+
+  throw lastError;
+}
+
 export async function answerGeneralMessage(
   message: string,
   previousContext?: Partial<FinanceIntent> | null,
@@ -42,15 +88,10 @@ export async function answerGeneralMessage(
   const context = previousContext
     ? `\nPrevious context: ${JSON.stringify(previousContext)}`
     : "";
-  const response = await getClient().models.generateContent({
-    model: env.generalAiModel,
-    contents: `User message: "${message}"${context}`,
-    config: {
-      systemInstruction: GENERAL_SYSTEM_PROMPT,
-      responseMimeType: "application/json",
-      temperature: 0.2,
-    },
-  });
+  const response = await generateGeneralContent(
+    `User message: "${message}"${context}`,
+    env.generalAiModel,
+  );
 
   const raw = response.text;
   if (!raw) throw new Error("General assistant returned an empty response.");

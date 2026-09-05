@@ -31,6 +31,10 @@ export const env = {
   },
 
   get generalAiModel(): string {
-    return process.env.GENERAL_AI_MODEL || "gemini-3.6-flash";
+    return (
+      process.env.GENERAL_AI_MODEL ||
+      process.env.GEMINI_MODEL ||
+      "gemini-3.1-flash-lite"
+    );
   },
 };
