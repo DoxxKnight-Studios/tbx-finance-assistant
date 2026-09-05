@@ -133,6 +133,20 @@ describe("POST /api/chat", () => {
   });
 
   it("executes a reconciliation summary query", async () => {
+    const response = await fetch(`${baseUrl}/api/chat`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        message: "Show me our revenue by account.",
+      }),
+    });
+
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.status).toBe("success");
+    expect(body.evidence.template).toBe("reconciliation_summary");
+  });
+
   it("carries clarification context into a follow-up vendor selection", async () => {
     const firstResponse = await fetch(`${baseUrl}/api/chat`, {
       method: "POST",
@@ -162,21 +176,6 @@ describe("POST /api/chat", () => {
 
     expect(secondBody.status).toBe("success");
     expect(secondBody.answer).toContain("Acme Logistics");
-  });
-
-  it("fails cleanly for an unimplemented executable query intent", async () => {
-    const response = await fetch(`${baseUrl}/api/chat`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        message: "Show me our revenue by account.",
-      }),
-    });
-
-    expect(response.status).toBe(200);
-    const body = await response.json();
-    expect(body.status).toBe("success");
-    expect(body.evidence.template).toBe("reconciliation_summary");
   });
 
   it("asks before switching an unsupported request to general AI mode", async () => {

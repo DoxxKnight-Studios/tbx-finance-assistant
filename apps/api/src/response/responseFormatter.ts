@@ -411,7 +411,10 @@ function formatSuccess(
         conversationContext: result.intent,
       };
     case "transaction_amount_filter":
-      return formatTransactionAmountFilter(result);
+      return {
+        ...formatTransactionAmountFilter(result),
+        conversationContext: result.intent,
+      };
     default:
       return formatUnsupportedTemplate(result);
   }
@@ -442,8 +445,11 @@ export function formatFinanceResponse(
       return {
         status: "clarification",
         answer: result.question,
-        conversationContext:
-          "partialIntent" in result ? result.partialIntent : undefined,
+        conversationContext: "partialIntent" in result
+          ? result.partialIntent
+          : "conversationContext" in result
+            ? result.conversationContext
+            : undefined,
       };
 
     case "not_found":

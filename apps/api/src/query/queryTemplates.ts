@@ -286,25 +286,64 @@ export const unreconciledTransactionsTemplate: QueryTemplate = {
 
 export const vendorPayoutLargestTemplate: QueryTemplate = {
   name: "vendor_payout_largest",
+
   build(plan) {
     const conditions: string[] = [];
     const params: unknown[] = [];
+
     addCondition(conditions, params, "t.transaction_type = ?", "VENDOR_PAYOUT");
     addCondition(conditions, params, "t.status = ?", "COMPLETED");
-    if (plan.filters.vendorId) addCondition(conditions, params, "t.vendor_id = ?", plan.filters.vendorId);
+    if (plan.filters.vendorId) {
+      addCondition(conditions, params, "t.vendor_id = ?", plan.filters.vendorId);
+    }
     addDateConditions(conditions, params, plan.filters);
-    const limit = addLimitParam(params, 1);
 
     return {
       text: `
-        SELECT t.id AS transaction_id, t.transaction_reference AS transaction_reference,
-          t.transaction_date AS transaction_date, v.vendor_code AS vendor_code,
-          v.name AS vendor_name, t.amount AS amount, t.category AS category
+        SELECT t.id AS transaction_id,
+          t.transaction_reference AS transaction_reference,
+          t.transaction_date AS transaction_date,
+          v.vendor_code AS vendor_code,
+          v.name AS vendor_name,
+          t.amount AS amount,
+          t.category AS category
         FROM transactions t
         LEFT JOIN vendors v ON v.id = t.vendor_id
         WHERE ${conditions.join("\nAND ")}
         ORDER BY t.amount DESC, t.transaction_date DESC, t.id ASC
-        LIMIT ${limit}
+        LIMIT 1
+      `.trim(),
+      params,
+    };
+  },
+};
+
+export const transactionAmountFilterTemplate: QueryTemplate = {
+  name: "transaction_amount_filter",
+
+  build(plan) {
+    const conditions: string[] = [];
+    const params: unknown[] = [];
+
+    if (plan.filters.amountLessThan !== undefined) {
+      addCondition(conditions, params, "t.amount < ?", plan.filters.amountLessThan);
+    }
+
+    if (plan.filters.vendorId) {
+      addCondition(conditions, params, "t.vendor_id = ?", plan.filters.vendorId);
+    }
+
+    if (plan.filters.category) {
+      addCondition(conditions, params, "t.category = ?", plan.filters.category);
+    }
+
+    addDateConditions(conditions, params, plan.filters);
+
+    return {
+      text: `
+        SELECT COUNT(*) AS count
+        FROM transactions t
+        WHERE ${conditions.length > 0 ? conditions.join("\nAND ") : "TRUE"}
       `.trim(),
       params,
     };
