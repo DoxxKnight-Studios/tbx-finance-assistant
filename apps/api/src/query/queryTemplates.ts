@@ -262,9 +262,11 @@ export const transactionAmountFilterTemplate: QueryTemplate = {
     const conditions: string[] = [];
     const params: unknown[] = [];
 
-    if (plan.filters.amountLessThan !== undefined) {
-      addCondition(conditions, params, "t.amount < ?", plan.filters.amountLessThan);
+    if (plan.filters.amountLessThan === undefined) {
+      throw new Error("transaction_amount_filter requires amountLessThan");
     }
+
+    addCondition(conditions, params, "t.amount < ?", plan.filters.amountLessThan);
 
     if (plan.filters.vendorId) {
       addCondition(conditions, params, "t.vendor_id = ?", plan.filters.vendorId);
