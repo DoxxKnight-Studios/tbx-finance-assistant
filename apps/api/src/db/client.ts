@@ -27,10 +27,10 @@ function taggedQuery(
 /**
  * Drop-in replacement for the subset of @neondatabase/serverless's `sql`
  * API this codebase relies on - tagged-template calls (used by
- * db/health.ts and query/entityResolver.ts) and `sql.query(text, params)`
- * (used by query/queryExecutor.ts, which already builds $1/$2-style
- * positional SQL). Backed by a standard `pg.Pool` so those call sites
- * didn't need to change.
+ * db/health.ts) and `sql.query(text, params)` (used by
+ * query/queryExecutor.ts, which already builds $1/$2-style positional
+ * SQL). Backed by a standard `pg.Pool` so those call sites didn't need
+ * to change.
  */
 export const sql: typeof taggedQuery & { query: typeof query } = Object.assign(
   taggedQuery,
