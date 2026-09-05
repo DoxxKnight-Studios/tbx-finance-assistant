@@ -93,6 +93,8 @@ export type ComparisonMetric = (typeof COMPARISON_METRICS)[number];
 export interface TransactionSpendTotalIntent {
   intent: "transaction_spend_total";
   date_range?: DateRange;
+  /** Natural-language phrase matched against transaction.description. */
+  description_query?: string;
   bank?: BankFilter;
   program_id?: ProgramId;
   account?: AccountFilter;

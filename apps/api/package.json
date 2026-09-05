@@ -7,6 +7,7 @@
     "build": "tsc -p tsconfig.build.json",
     "start": "node dist/server.js",
     "seed": "tsx src/seed/index.ts",
+    "db:description-index": "tsx scripts/createDescriptionIndex.ts",
     "test": "vitest run",
     "verify:gemini": "tsx scripts/verifyGeminiParser.ts",
     "test:validator": "tsx --test tests/validator.test.ts"

@@ -146,6 +146,15 @@ export function isValidFinanceIntent(value: unknown): value is FinanceIntent {
 
   switch (fi.intent as IntentName) {
     case "transaction_spend_total":
+      return (
+        hasOnlyAllowedKeys(fi, ["intent", "date_range", "description_query", "bank", "program_id", "account"]) &&
+        isOptionalDateRange(fi.date_range) &&
+        (fi.description_query === undefined ||
+          (typeof fi.description_query === "string" && fi.description_query.trim().length > 0)) &&
+        isOptionalBankFilter(fi.bank) &&
+        isOptionalProgramId(fi.program_id) &&
+        isOptionalAccountFilter(fi.account)
+      );
     case "transaction_income_total":
     case "transaction_summary":
       return (

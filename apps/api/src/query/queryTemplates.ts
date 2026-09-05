@@ -102,6 +102,16 @@ function buildAggregateTotalQuery(
   const params: unknown[] = [];
 
   addCondition(conditions, params, "t.transaction_type = ?", transactionType);
+  if (filters.descriptionQuery) {
+    params.push(filters.descriptionQuery, filters.descriptionQuery, 0.3);
+    const queryPlaceholder = `$${params.length - 2}`;
+    const similarityQueryPlaceholder = `$${params.length - 1}`;
+    const thresholdPlaceholder = `$${params.length}`;
+    conditions.push(
+      `lower(t.description) % lower(${queryPlaceholder})`,
+      `similarity(lower(t.description), lower(${similarityQueryPlaceholder})) >= ${thresholdPlaceholder}`,
+    );
+  }
   const { joinAccount } = addScopeConditions(conditions, params, filters, "t");
 
   return {

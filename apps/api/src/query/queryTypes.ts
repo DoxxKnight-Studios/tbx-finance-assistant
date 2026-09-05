@@ -25,6 +25,7 @@ export interface QueryDateWindow {
  */
 export interface FullScopeFilters {
   dateWindow?: QueryDateWindow;
+  descriptionQuery?: string;
   bankCode?: string;
   programId?: number;
   accountId?: string;
