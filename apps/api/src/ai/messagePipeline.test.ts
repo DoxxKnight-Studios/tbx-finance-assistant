@@ -5,20 +5,24 @@ import {
 } from "./messagePipeline.js";
 import type { ConversationContext } from "./conversationContext.js";
 
+// A real account known to exist in the deterministic Phase 3 seed
+// (seed=20260905) - used wherever a test needs a last4 that actually
+// resolves against the live database.
+const KNOWN_LAST4 = "7622";
+
 /**
- * These tests exercise the AI contract (parse -> validate -> hand off to
- * the query pipeline) without touching a database. Every one of the new
- * 10 intents deterministically resolves to "unsupported_query_intent"
- * here, because query/queryTemplateRegistry.ts (Phase 5's job, not this
- * phase's) has no template registered for any of them yet -
- * queryPipeline.ts's executeFinanceIntent() checks isTemplateSupported()
- * BEFORE it would ever touch the database, so this is a real,
- * deterministic, DB-free code path today, not a mock of one.
+ * As of Phase 7, every one of the 10 approved intents has a real,
+ * registered SQL template - these tests exercise the full
+ * parse -> validate -> plan -> template -> execute pipeline against the
+ * real seeded local database, not a mock of one. (Earlier phases'
+ * versions of this file asserted "unsupported_query_intent" here,
+ * because no template existed yet; Phase 7 completed that, so those
+ * assertions were updated to match.)
  */
 describe("processFinanceMessage - new FinanceIntent contract", () => {
   const referenceDate = new Date("2026-09-05T00:00:00Z");
 
-  it("runs a valid new-contract intent through validation into the query layer", async () => {
+  it("runs a valid new-contract intent all the way through to a real result", async () => {
     const mockParser: FinanceIntentParser = async () => ({
       status: "success",
       intent: {
@@ -34,16 +38,15 @@ describe("processFinanceMessage - new FinanceIntent contract", () => {
       { referenceDate },
     );
 
-    // No template is registered for any Phase-4 intent yet (that's
-    // Phase 5+), so a structurally-valid intent deterministically comes
-    // back as unsupported_query_intent rather than a DB error.
-    expect(result.status).toBe("unsupported_query_intent");
-    if (result.status === "unsupported_query_intent") {
-      expect(result.intent.intent).toBe("transaction_spend_total");
+    expect(result.status).toBe("success");
+    if (result.status === "success") {
+      expect(result.template).toBe("transaction_spend_total");
+      expect(result.rows).toHaveLength(1);
+      expect(typeof result.rows[0].total).toBe("string");
     }
   });
 
-  it("passes every approved intent through to the query layer without a parser_error", async () => {
+  it("passes every approved intent through to a real, non-error result", async () => {
     const intents: FinanceIntentParser[] = [
       async () => ({ status: "success", intent: { intent: "transaction_spend_total" } }),
       async () => ({ status: "success", intent: { intent: "transaction_income_total" } }),
@@ -58,7 +61,7 @@ describe("processFinanceMessage - new FinanceIntent contract", () => {
       }),
       async () => ({
         status: "success",
-        intent: { intent: "account_balance", account: { last4: "9069" } },
+        intent: { intent: "account_balance", account: { last4: KNOWN_LAST4 } },
       }),
       async () => ({
         status: "success",
@@ -77,7 +80,11 @@ describe("processFinanceMessage - new FinanceIntent contract", () => {
       const result = await processFinanceMessage("irrelevant for this parser", mockParser, {
         referenceDate,
       });
-      expect(result.status).toBe("unsupported_query_intent");
+      // The one invariant that matters at this layer: a structurally
+      // valid intent for any approved template never comes back as
+      // parser_error or unsupported_query_intent now that Phase 7 has
+      // registered a template for all 10.
+      expect(result.status).toBe("success");
     }
   });
 
@@ -157,12 +164,12 @@ describe("processFinanceMessage - new FinanceIntent contract", () => {
  * prove: (1) ConversationContext types every one of these previous-turn
  * snapshots without `any`/Record<string,unknown>, and (2) once a parser
  * produces the correctly-merged intent (standing in for what the prompt
- * instructs Gemini to do), the pipeline's validation/handoff carries it
- * through byte-for-byte rather than corrupting, rejecting, or silently
- * stripping any part of it. Whether the real Gemini integration actually
- * performs each merge correctly is a prompt-engineering question,
- * checked separately via the manual scripts/verifyGeminiParser.ts smoke
- * test against a live model - not by this suite.
+ * instructs Gemini to do), the pipeline carries it through to a real
+ * result, end to end, against the real seeded database. Whether the real
+ * Gemini integration actually performs each merge correctly is a
+ * prompt-engineering question, checked separately via the manual
+ * scripts/verifyGeminiParser.ts smoke test against a live model - not by
+ * this suite.
  */
 describe("processFinanceMessage - multi-turn fact inheritance (worked examples from the prompt)", () => {
   const referenceDate = new Date("2026-09-05T00:00:00Z");
@@ -186,12 +193,15 @@ describe("processFinanceMessage - multi-turn fact inheritance (worked examples f
       previousContext,
     });
 
-    expect(result.status).toBe("unsupported_query_intent");
-    if (result.status === "unsupported_query_intent") {
-      expect(result.intent).toEqual({
-        intent: "transaction_spend_total",
-        date_range: { type: "month", year: 2026, month: 7 },
-      });
+    expect(result.status).toBe("success");
+    if (result.status === "success") {
+      expect(result.plan.intent).toBe("transaction_spend_total");
+      if (result.plan.intent === "transaction_spend_total") {
+        expect(result.plan.filters.dateWindow).toEqual({
+          startDate: "2026-07-01",
+          endDateExclusive: "2026-08-01",
+        });
+      }
     }
   });
 
@@ -215,13 +225,10 @@ describe("processFinanceMessage - multi-turn fact inheritance (worked examples f
       previousContext,
     });
 
-    expect(result.status).toBe("unsupported_query_intent");
-    if (result.status === "unsupported_query_intent") {
-      expect(result.intent).toEqual({
-        intent: "transaction_spend_total",
-        date_range: { type: "month", year: 2026, month: 8 },
-        bank: { code: "HDFC" },
-      });
+    expect(result.status).toBe("success");
+    if (result.status === "success" && result.plan.intent === "transaction_spend_total") {
+      expect(result.plan.filters.dateWindow?.startDate).toBe("2026-08-01");
+      expect(result.plan.filters.bankCode).toBe("HDFC");
     }
   });
 
@@ -245,12 +252,12 @@ describe("processFinanceMessage - multi-turn fact inheritance (worked examples f
       { referenceDate, previousContext },
     );
 
-    expect(result.status).toBe("unsupported_query_intent");
-    if (result.status === "unsupported_query_intent") {
-      expect(result.intent).toEqual({
-        intent: "transaction_spend_by_bank",
-        date_range: { type: "month", year: 2026, month: 8 },
-      });
+    expect(result.status).toBe("success");
+    if (result.status === "success") {
+      expect(result.template).toBe("transaction_spend_by_bank");
+      if (result.plan.intent === "transaction_spend_by_bank") {
+        expect(result.plan.filters.dateWindow?.startDate).toBe("2026-08-01");
+      }
     }
   });
 
@@ -264,23 +271,22 @@ describe("processFinanceMessage - multi-turn fact inheritance (worked examples f
       status: "success",
       intent: {
         intent: "account_balance",
-        account: { last4: "9069" },
+        account: { last4: KNOWN_LAST4 },
       },
     });
 
     const result = await processFinanceMessage(
-      "What is the balance of the account ending 9069?",
+      `What is the balance of the account ending ${KNOWN_LAST4}?`,
       mockParser,
       { referenceDate, previousContext },
     );
 
-    expect(result.status).toBe("unsupported_query_intent");
-    if (result.status === "unsupported_query_intent") {
-      expect(result.intent).toEqual({
-        intent: "account_balance",
-        account: { last4: "9069" },
-      });
-      expect("date_range" in result.intent).toBe(false);
+    expect(result.status).toBe("success");
+    if (result.status === "success") {
+      expect(result.template).toBe("account_balance");
+      // account_balance's plan type has no date_range/filters field at
+      // all - there is nothing for the August date to have attached to.
+      expect(Object.keys(result.plan)).not.toContain("filters");
     }
   });
 
@@ -305,27 +311,24 @@ describe("processFinanceMessage - multi-turn fact inheritance (worked examples f
       { referenceDate, previousContext },
     );
 
-    expect(result.status).toBe("unsupported_query_intent");
-    if (result.status === "unsupported_query_intent") {
-      expect(result.intent).toEqual({
-        intent: "transaction_spend_by_bank",
-        date_range: { type: "month", year: 2026, month: 8 },
-      });
-      expect("bank" in result.intent).toBe(false);
+    expect(result.status).toBe("success");
+    if (result.status === "success" && result.plan.intent === "transaction_spend_by_bank") {
+      expect(result.plan.filters.dateWindow?.startDate).toBe("2026-08-01");
+      expect(result.plan.filters.bankCode).toBeUndefined();
     }
   });
 
   it("F. account context: a same-account follow-up can still carry account.last4 forward", async () => {
     const previousContext: ConversationContext = {
       intent: "account_balance",
-      account: { last4: "9069" },
+      account: { last4: KNOWN_LAST4 },
     };
 
     const mockParser: FinanceIntentParser = async () => ({
       status: "success",
       intent: {
         intent: "transaction_count",
-        account: { last4: "9069" },
+        account: { last4: KNOWN_LAST4 },
         date_range: { type: "this_month" },
       },
     });
@@ -336,13 +339,11 @@ describe("processFinanceMessage - multi-turn fact inheritance (worked examples f
       { referenceDate, previousContext },
     );
 
-    expect(result.status).toBe("unsupported_query_intent");
-    if (result.status === "unsupported_query_intent") {
-      expect(result.intent).toEqual({
-        intent: "transaction_count",
-        account: { last4: "9069" },
-        date_range: { type: "this_month" },
-      });
+    expect(result.status).toBe("success");
+    if (result.status === "success") {
+      expect(result.template).toBe("transaction_count");
+      expect(result.rows).toHaveLength(1);
+      expect(typeof result.rows[0].count).toBe("string");
     }
   });
 });

@@ -1,28 +1,37 @@
 import type { IntentName } from "../ai/types.js";
 import type { QueryTemplate } from "./queryTemplates.js";
 import {
-  unreconciledTransactionsTemplate,
-  vendorPayoutByVendorTemplate,
-  vendorPayoutTotalTemplate,
+  accountBalanceTemplate,
+  financialComparisonTemplate,
+  largestTransactionTemplate,
+  transactionCountTemplate,
+  transactionIncomeTotalTemplate,
+  transactionLookupTemplate,
+  transactionSpendByBankTemplate,
+  transactionSpendByProgramTemplate,
+  transactionSpendTotalTemplate,
+  transactionSummaryTemplate,
 } from "./queryTemplates.js";
 
 /**
- * Intents that currently have a predefined SQL template. This is
- * intentionally a strict subset of IntentName - an intent must be added
- * here explicitly (with a real template) before it becomes executable.
+ * Every approved intent has exactly one template - this Record forces
+ * that at compile time (a missing or misspelled key is a type error, not
+ * a silent runtime gap). No old intents, no dynamically-constructed
+ * lookup key.
  */
-export type SupportedTemplateIntent =
-  | "vendor_payout_total"
-  | "vendor_payout_by_vendor"
-  | "unreconciled_transactions";
+export type SupportedTemplateIntent = IntentName;
 
-const queryTemplateRegistry: Record<
-  SupportedTemplateIntent,
-  QueryTemplate
-> = {
-  vendor_payout_total: vendorPayoutTotalTemplate,
-  vendor_payout_by_vendor: vendorPayoutByVendorTemplate,
-  unreconciled_transactions: unreconciledTransactionsTemplate,
+const queryTemplateRegistry: Record<SupportedTemplateIntent, QueryTemplate> = {
+  transaction_spend_total: transactionSpendTotalTemplate,
+  transaction_income_total: transactionIncomeTotalTemplate,
+  transaction_count: transactionCountTemplate,
+  transaction_spend_by_bank: transactionSpendByBankTemplate,
+  transaction_spend_by_program: transactionSpendByProgramTemplate,
+  transaction_summary: transactionSummaryTemplate,
+  largest_transaction: largestTransactionTemplate,
+  transaction_lookup: transactionLookupTemplate,
+  account_balance: accountBalanceTemplate,
+  financial_comparison: financialComparisonTemplate,
 };
 
 export function isTemplateSupported(
