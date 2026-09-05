@@ -61,6 +61,17 @@ export function validateIntent(
   }
 
   if (
+    intent.intent === "transaction_amount_filter" &&
+    intent.amount_less_than === undefined
+  ) {
+    return {
+      valid: false,
+      reason: "MISSING_AMOUNT_THRESHOLD",
+      clarification: "What transaction amount should I use as the threshold?",
+    };
+  }
+
+  if (
     intent.intent === "financial_comparison" &&
     !intent.comparison
   ) {
@@ -160,6 +171,24 @@ export function isValidFinanceIntent(intent: unknown): intent is FinanceIntent {
   }
 
   if (fi.category !== undefined && typeof fi.category !== "string") {
+    return false;
+  }
+
+  if (
+    fi.amount_less_than !== undefined &&
+    (typeof fi.amount_less_than !== "number" ||
+      !Number.isFinite(fi.amount_less_than) ||
+      fi.amount_less_than < 0)
+  ) {
+    return false;
+  }
+
+  if (
+    fi.intent === "transaction_amount_filter" &&
+    (typeof fi.amount_less_than !== "number" ||
+      !Number.isFinite(fi.amount_less_than) ||
+      fi.amount_less_than < 0)
+  ) {
     return false;
   }
 

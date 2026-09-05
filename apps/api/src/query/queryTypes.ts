@@ -23,6 +23,7 @@ export interface QueryFilters {
   transactionStatus?: string;
   reconciliationStatus?: string;
   transactionReference?: string;
+  amountLessThan?: number;
   startDate?: string;
   endDateExclusive?: string;
 }

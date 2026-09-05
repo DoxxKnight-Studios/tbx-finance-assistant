@@ -6,6 +6,7 @@ import {
   transactionSpendByCategoryTemplate,
   transactionSpendByVendorTemplate,
   transactionSpendTotalTemplate,
+  transactionAmountFilterTemplate,
   unreconciledTransactionsTemplate,
   vendorPayoutByVendorTemplate,
   vendorPayoutLargestTemplate,
@@ -43,6 +44,23 @@ describe("new finance intent templates", () => {
         secondary: { startDate: "2026-07-01", endDateExclusive: "2026-08-01" },
       },
     }).text).toContain("primary_total");
+describe("transactionAmountFilterTemplate", () => {
+  it("counts transactions below a threshold with parameterized filters", () => {
+    const result = transactionAmountFilterTemplate.build({
+      intent: "transaction_amount_filter",
+      filters: {
+        amountLessThan: 5000,
+        startDate: "2026-08-01",
+        endDateExclusive: "2026-09-01",
+      },
+      aggregation: { function: "count" },
+    });
+
+    expect(result.params).toEqual([5000, "2026-08-01", "2026-09-01"]);
+    expect(result.text).toContain("SELECT COUNT(*) AS count");
+    expect(result.text).toContain("t.amount < $1");
+    expect(result.text).toContain("t.transaction_date >= $2");
+    expect(result.text).not.toContain("5000");
   });
 });
 

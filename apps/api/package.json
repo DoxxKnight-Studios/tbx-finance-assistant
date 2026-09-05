@@ -8,6 +8,7 @@
     "start": "node dist/server.js",
     "seed": "tsx src/seed/index.ts",
     "seed:fixed": "tsx src/seed/index.ts --transactions 25000 --seed 20260904",
+    "db:indexes": "tsx scripts/createIndexes.ts",
     "test": "vitest run",
     "verify:gemini": "tsx scripts/verifyGeminiParser.ts",
     "test:validator": "tsx --test tests/validator.test.ts"

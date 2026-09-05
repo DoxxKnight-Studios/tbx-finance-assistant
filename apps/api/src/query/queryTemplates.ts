@@ -286,6 +286,8 @@ export const unreconciledTransactionsTemplate: QueryTemplate = {
 
 export const vendorPayoutLargestTemplate: QueryTemplate = {
   name: "vendor_payout_largest",
+export const transactionAmountFilterTemplate: QueryTemplate = {
+  name: "transaction_amount_filter",
 
   build(plan) {
     const conditions: string[] = [];
@@ -437,6 +439,34 @@ export const financialComparisonTemplate: QueryTemplate = {
         WHERE t.status = $1 AND t.transaction_type NOT IN ($2, $3)
           AND ((t.transaction_date >= $${primaryStart} AND t.transaction_date < $${primaryEnd})
             OR (t.transaction_date >= $${secondaryStart} AND t.transaction_date < $${secondaryEnd}))
+
+    if (plan.filters.amountLessThan === undefined) {
+      throw new Error("transaction_amount_filter requires amountLessThan");
+    }
+
+    addCondition(conditions, params, "t.amount < ?", plan.filters.amountLessThan);
+
+    if (plan.filters.vendorId) {
+      addCondition(conditions, params, "t.vendor_id = ?", plan.filters.vendorId);
+    }
+
+    if (plan.filters.category) {
+      addCondition(conditions, params, "t.category = ?", plan.filters.category);
+    }
+
+    if (plan.filters.startDate) {
+      addCondition(conditions, params, "t.transaction_date >= ?", plan.filters.startDate);
+    }
+
+    if (plan.filters.endDateExclusive) {
+      addCondition(conditions, params, "t.transaction_date < ?", plan.filters.endDateExclusive);
+    }
+
+    return {
+      text: `
+        SELECT COUNT(*) AS count
+        FROM transactions t
+        WHERE ${conditions.length > 0 ? conditions.join("\nAND ") : "TRUE"}
       `.trim(),
       params,
     };

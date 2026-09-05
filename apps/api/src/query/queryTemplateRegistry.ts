@@ -11,6 +11,7 @@ import {
   vendorPayoutByVendorTemplate,
   vendorPayoutLargestTemplate,
   vendorPayoutTotalTemplate,
+  transactionAmountFilterTemplate,
 } from "./queryTemplates.js";
 
 /**
@@ -21,7 +22,6 @@ import {
 export type SupportedTemplateIntent =
   | "vendor_payout_total"
   | "vendor_payout_by_vendor"
-  | "unreconciled_transactions"
   | "vendor_payout_largest"
   | "transaction_spend_total"
   | "transaction_spend_by_vendor"
@@ -29,6 +29,8 @@ export type SupportedTemplateIntent =
   | "transaction_lookup"
   | "reconciliation_summary"
   | "financial_comparison";
+  | "transaction_amount_filter"
+  | "unreconciled_transactions";
 
 const queryTemplateRegistry: Record<
   SupportedTemplateIntent,
@@ -36,6 +38,7 @@ const queryTemplateRegistry: Record<
 > = {
   vendor_payout_total: vendorPayoutTotalTemplate,
   vendor_payout_by_vendor: vendorPayoutByVendorTemplate,
+  transaction_amount_filter: transactionAmountFilterTemplate,
   unreconciled_transactions: unreconciledTransactionsTemplate,
   vendor_payout_largest: vendorPayoutLargestTemplate,
   transaction_spend_total: transactionSpendTotalTemplate,

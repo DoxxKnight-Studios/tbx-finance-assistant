@@ -4,7 +4,17 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createChatRouter } from "./chat.js";
 import type { FinanceIntentParser } from "../ai/messagePipeline.js";
 
-const mockParser: FinanceIntentParser = async (message) => {
+const mockParser: FinanceIntentParser = async (message, previousContext) => {
+  if (message === "Acme Logistics" && previousContext?.intent === "vendor_payout_total") {
+    return {
+      status: "success",
+      intent: {
+        ...previousContext,
+        vendor: { name: "Acme Logistics" },
+      },
+    };
+  }
+
   if (message.includes("Acme Corporation")) {
     return {
       status: "success",
@@ -123,6 +133,38 @@ describe("POST /api/chat", () => {
   });
 
   it("executes a reconciliation summary query", async () => {
+  it("carries clarification context into a follow-up vendor selection", async () => {
+    const firstResponse = await fetch(`${baseUrl}/api/chat`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        message: "How much did we pay Acme last month?",
+      }),
+    });
+    const firstBody = await firstResponse.json();
+
+    expect(firstBody.status).toBe("clarification");
+    expect(firstBody.conversationContext).toEqual({
+      intent: "vendor_payout_total",
+      vendor: { name: "Acme" },
+      date_range: { type: "last_month" },
+    });
+
+    const secondResponse = await fetch(`${baseUrl}/api/chat`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        message: "Acme Logistics",
+        conversationContext: firstBody.conversationContext,
+      }),
+    });
+    const secondBody = await secondResponse.json();
+
+    expect(secondBody.status).toBe("success");
+    expect(secondBody.answer).toContain("Acme Logistics");
+  });
+
+  it("fails cleanly for an unimplemented executable query intent", async () => {
     const response = await fetch(`${baseUrl}/api/chat`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
