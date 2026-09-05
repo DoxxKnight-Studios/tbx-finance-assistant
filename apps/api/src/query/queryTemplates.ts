@@ -103,13 +103,11 @@ function buildAggregateTotalQuery(
 
   addCondition(conditions, params, "t.transaction_type = ?", transactionType);
   if (filters.descriptionQuery) {
-    params.push(filters.descriptionQuery, filters.descriptionQuery, 0.3);
-    const queryPlaceholder = `$${params.length - 2}`;
-    const similarityQueryPlaceholder = `$${params.length - 1}`;
-    const thresholdPlaceholder = `$${params.length}`;
-    conditions.push(
-      `lower(t.description) % lower(${queryPlaceholder})`,
-      `similarity(lower(t.description), lower(${similarityQueryPlaceholder})) >= ${thresholdPlaceholder}`,
+    addCondition(
+      conditions,
+      params,
+      "MATCH(t.description) AGAINST (? IN BOOLEAN MODE)",
+      filters.descriptionQuery,
     );
   }
   const { joinAccount } = addScopeConditions(conditions, params, filters, "t");
@@ -117,7 +115,7 @@ function buildAggregateTotalQuery(
   return {
     text: `
       SELECT COALESCE(SUM(t.transaction_amount), 0) AS total
-      FROM "transaction" t
+      FROM \`transaction\` t
       ${accountJoinClause(joinAccount)}
       ${buildWhereClause(conditions)}
     `.trim(),
@@ -166,7 +164,7 @@ export const transactionCountTemplate: QueryTemplate = {
     return {
       text: `
         SELECT COUNT(*) AS count
-        FROM "transaction" t
+        FROM \`transaction\` t
         ${accountJoinClause(joinAccount)}
         ${buildWhereClause(conditions)}
       `.trim(),
@@ -198,7 +196,7 @@ export const transactionSpendByBankTemplate: QueryTemplate = {
           b.bank_code AS bank_code,
           b.bank_name AS bank_name,
           COALESCE(SUM(t.transaction_amount), 0) AS total
-        FROM "transaction" t
+        FROM \`transaction\` t
         JOIN account a ON a.account_id = t.account_id
         JOIN bank b ON b.bank_code = a.bank_code
         ${buildWhereClause(conditions)}
@@ -233,7 +231,7 @@ export const transactionSpendByProgramTemplate: QueryTemplate = {
         SELECT
           a.program_id AS program_id,
           COALESCE(SUM(t.transaction_amount), 0) AS total
-        FROM "transaction" t
+        FROM \`transaction\` t
         JOIN account a ON a.account_id = t.account_id
         ${buildWhereClause(conditions)}
         GROUP BY a.program_id
@@ -271,7 +269,7 @@ export const transactionSummaryTemplate: QueryTemplate = {
             COUNT(*) AS count,
             COALESCE(SUM(CASE WHEN t.transaction_type = 'debit' THEN t.transaction_amount ELSE 0 END), 0) AS debit_total,
             COALESCE(SUM(CASE WHEN t.transaction_type = 'credit' THEN t.transaction_amount ELSE 0 END), 0) AS credit_total
-          FROM "transaction" t
+          FROM \`transaction\` t
           ${accountJoinClause(joinAccount)}
           ${buildWhereClause(conditions)}
         )
@@ -320,7 +318,7 @@ export const largestTransactionTemplate: QueryTemplate = {
           a.program_id AS program_id,
           b.bank_code AS bank_code,
           b.bank_name AS bank_name
-        FROM "transaction" t
+        FROM \`transaction\` t
         JOIN account a ON a.account_id = t.account_id
         JOIN bank b ON b.bank_code = a.bank_code
         ${buildWhereClause(conditions)}
@@ -358,7 +356,7 @@ export const transactionLookupTemplate: QueryTemplate = {
           a.program_id AS program_id,
           b.bank_code AS bank_code,
           b.bank_name AS bank_name
-        FROM "transaction" t
+          FROM \`transaction\` t
         JOIN account a ON a.account_id = t.account_id
         JOIN bank b ON b.bank_code = a.bank_code
         ${buildWhereClause(conditions)}
@@ -405,8 +403,8 @@ export const accountBalanceTemplate: QueryTemplate = {
 };
 
 // ---- 10: financial_comparison ------------------------------------------------
-// Both periods computed independently, in one pass over "transaction",
-// using Postgres's aggregate FILTER clause - $1/$2 bound the primary
+// Both periods computed independently, in one pass over `transaction`,
+// using MySQL CASE aggregates - $1/$2 bind the primary
 // window and $3/$4 the secondary window, so there is no risk of the two
 // periods' conditions bleeding into each other. The metric->transaction_type
 // mapping (spend=debit, income=credit) is applied as a single WHERE clause
@@ -436,19 +434,22 @@ export const financialComparisonTemplate: QueryTemplate = {
     let whereClause = "";
 
     if (plan.metric === "transaction_count") {
-      aggregateExpr = "COUNT(*)";
+      aggregateExpr = "COUNT(CASE WHEN {window} THEN 1 END)";
     } else {
-      aggregateExpr = "SUM(t.transaction_amount)";
+      aggregateExpr = "SUM(CASE WHEN {window} THEN t.transaction_amount ELSE 0 END)";
       params.push(plan.metric === "spend" ? "debit" : "credit");
       whereClause = `WHERE t.transaction_type = $${params.length}`;
     }
 
+    const primaryAggregate = aggregateExpr.replace("{window}", primaryWindow);
+    const secondaryAggregate = aggregateExpr.replace("{window}", secondaryWindow);
+
     return {
       text: `
         SELECT
-          COALESCE(${aggregateExpr} FILTER (WHERE ${primaryWindow}), 0) AS primary_value,
-          COALESCE(${aggregateExpr} FILTER (WHERE ${secondaryWindow}), 0) AS secondary_value
-        FROM "transaction" t
+          COALESCE(${primaryAggregate}, 0) AS primary_value,
+          COALESCE(${secondaryAggregate}, 0) AS secondary_value
+        FROM \`transaction\` t
         ${whereClause}
       `.trim(),
       params,

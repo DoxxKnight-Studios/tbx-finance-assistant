@@ -1,17 +1,24 @@
-import { Pool } from "pg";
+import mysql from "mysql2/promise";
 import { env } from "../src/config/env.js";
 
 async function main(): Promise<void> {
-  const pool = new Pool({ connectionString: env.databaseUrl, max: 1 });
+  const pool = mysql.createPool(env.databaseUrl);
 
   try {
-    await pool.query("CREATE EXTENSION IF NOT EXISTS pg_trgm");
-    await pool.query(`
-      CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_transaction_description_trgm
-      ON "transaction" USING gin (lower(description) gin_trgm_ops)
-    `);
-    await pool.query('ANALYZE "transaction"');
-    console.log("Description similarity index is ready.");
+    const [rows] = await pool.query(
+      `SELECT COUNT(*) AS count
+       FROM information_schema.statistics
+       WHERE table_schema = DATABASE()
+         AND table_name = 'transaction'
+         AND index_name = 'idx_transaction_description_fulltext'`,
+    );
+    const existing = Number((rows as Array<{ count: number }>)[0]?.count ?? 0);
+    if (existing === 0) {
+      await pool.query(
+        "ALTER TABLE `transaction` ADD FULLTEXT INDEX idx_transaction_description_fulltext (description)",
+      );
+    }
+    console.log("MySQL description FULLTEXT index is ready.");
   } finally {
     await pool.end();
   }

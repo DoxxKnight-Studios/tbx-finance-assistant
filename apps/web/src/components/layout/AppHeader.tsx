@@ -5,10 +5,15 @@ import { cn } from "@/lib/utils";
 
 function StatusIndicator({ status }: { status: ApiHealthState }) {
   const label =
-    status === "online" ? "Connected" : status === "offline" ? "Offline" : "Connecting";
+        status === "online"
+      ? "Connected"
+      : status === "offline"
+        ? "Offline"
+        : "Connecting";
 
   return (
-    <div className="hidden items-center gap-1.5 rounded-full border border-border/60 bg-background/50 px-2.5 py-1 text-xs text-muted-foreground sm:flex">
+    <div className="hidden items-center gap-1.5 rounded-full border border-border/60 bg-background/50 px-2.5 py-1 text-xs text-muted-foreground sm:flex 
+    dark:border-white/10 dark:bg-[#080b12]/50 dark:text-[#9aa0a6]">
       <span
         className={cn(
           "size-1.5 rounded-full",
@@ -34,25 +39,18 @@ export function AppHeader({
   return (
     <header className="sticky top-0 z-20 border-b border-border/60 bg-background/70 backdrop-blur-md">
       <div className="mx-auto flex h-16 max-w-[1050px] items-center justify-between px-4 sm:px-6">
-        <div className="flex items-center gap-2.5">
-          <div
-            className="flex size-8 items-center justify-center rounded-xl text-[13px] font-bold text-white shadow-brand-glow"
-            style={{ background: "var(--brand-gradient)" }}
-          >
-            T
-          </div>
-          <div className="leading-none">
-            <div className="text-[13px] font-semibold tracking-tight">
-              TBX <span className="text-muted-foreground font-normal">Finance</span>
-            </div>
-          </div>
+        <div className="flex items-center gap-4">
+          <img
+            src={theme === "dark" ? "/Dark_Logo.png" : "/logo.png"}
+              alt="TBX Finance"
+              className={theme === "dark" ? "h-18 w-auto object-contain" : "size-75 object-contain"}
+            />
         </div>
-
         <div className="flex items-center gap-2">
           <StatusIndicator status={apiHealth} />
           <ThemeToggle theme={theme} onToggle={onToggleTheme} />
         </div>
-      </div>
+        </div>
     </header>
   );
 }

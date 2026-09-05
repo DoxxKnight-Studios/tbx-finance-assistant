@@ -71,7 +71,7 @@ export async function resolveAccountByLast4(last4: string): Promise<AccountResol
       bank_code,
       program_id
     FROM account
-    WHERE account_number LIKE $1
+    WHERE account_number LIKE ?
     ORDER BY account_id
     LIMIT 10
     `,

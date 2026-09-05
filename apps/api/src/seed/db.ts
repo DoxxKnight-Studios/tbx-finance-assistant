@@ -1,5 +1,4 @@
-import type { PoolClient } from "pg";
-import { pool } from "../db/client.js";
+import { pool, type DatabaseConnection } from "../db/client.js";
 import type { AccountRow, BankRow, GeneratedSeed, TransactionRow } from "./generator.js";
 
 const BATCH_SIZE = 1000;
@@ -9,14 +8,14 @@ function buildValuesClause(rows: readonly unknown[][]): { sql: string; values: u
   const placeholders = rows.map((row) => {
     const rowPlaceholders = row.map((value) => {
       values.push(value);
-      return `$${values.length}`;
+      return "?";
     });
     return `(${rowPlaceholders.join(", ")})`;
   });
   return { sql: placeholders.join(", "), values };
 }
 
-async function insertBanks(client: PoolClient, banks: BankRow[]): Promise<void> {
+async function insertBanks(client: DatabaseConnection, banks: BankRow[]): Promise<void> {
   const { sql, values } = buildValuesClause(banks.map((b) => [b.bank_code, b.bank_name]));
   await client.query(
     `INSERT INTO bank (bank_code, bank_name) VALUES ${sql}`,
@@ -24,7 +23,7 @@ async function insertBanks(client: PoolClient, banks: BankRow[]): Promise<void> 
   );
 }
 
-async function insertAccounts(client: PoolClient, accounts: AccountRow[]): Promise<void> {
+async function insertAccounts(client: DatabaseConnection, accounts: AccountRow[]): Promise<void> {
   for (let start = 0; start < accounts.length; start += BATCH_SIZE) {
     const batch = accounts.slice(start, start + BATCH_SIZE);
     const { sql, values } = buildValuesClause(
@@ -50,7 +49,7 @@ async function insertAccounts(client: PoolClient, accounts: AccountRow[]): Promi
   }
 }
 
-async function insertTransactions(client: PoolClient, transactions: TransactionRow[]): Promise<void> {
+async function insertTransactions(client: DatabaseConnection, transactions: TransactionRow[]): Promise<void> {
   for (let start = 0; start < transactions.length; start += BATCH_SIZE) {
     const batch = transactions.slice(start, start + BATCH_SIZE);
     const { sql, values } = buildValuesClause(
@@ -68,7 +67,7 @@ async function insertTransactions(client: PoolClient, transactions: TransactionR
 
     await client.query(
       `
-      INSERT INTO "transaction" (
+      INSERT INTO \`transaction\` (
         transaction_id, account_id, transaction_date, transaction_type,
         description, transaction_amount, transaction_reference_id, utr_number
       )
@@ -87,22 +86,24 @@ async function insertTransactions(client: PoolClient, transactions: TransactionR
  * always replaces, never appends.
  */
 export async function seedDatabase(seed: GeneratedSeed): Promise<void> {
-  const client = await pool.connect();
+  const client = await pool.getConnection();
 
   try {
-    await client.query("BEGIN");
+    await client.beginTransaction();
 
-    // All three tables together in one statement - Postgres allows this
-    // without CASCADE as long as every dependent table is listed.
-    await client.query('TRUNCATE TABLE "transaction", account, bank');
+    await client.query("SET FOREIGN_KEY_CHECKS = 0");
+    await client.query("TRUNCATE TABLE `transaction`");
+    await client.query("TRUNCATE TABLE account");
+    await client.query("TRUNCATE TABLE bank");
+    await client.query("SET FOREIGN_KEY_CHECKS = 1");
 
     await insertBanks(client, seed.banks);
     await insertAccounts(client, seed.accounts);
     await insertTransactions(client, seed.transactions);
 
-    await client.query("COMMIT");
+    await client.commit();
   } catch (error) {
-    await client.query("ROLLBACK");
+    await client.rollback();
     throw error;
   } finally {
     client.release();

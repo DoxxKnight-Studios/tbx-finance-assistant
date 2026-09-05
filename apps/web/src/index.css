@@ -122,24 +122,20 @@
 }
 
 :root {
-  --brand-orange: #ff9152;
-  --brand-pink: #fd4f8f;
-  --brand-magenta: #e1306c;
-  --brand-purple: #8134af;
+  --brand-orange: #60a5fa;
+  --brand-pink: #3b82f6;
+  --brand-magenta: #2563eb;
+  --brand-purple: #1d4ed8;
 
-  --brand-gradient: linear-gradient(
-    115deg,
-    var(--brand-orange) 0%,
-    var(--brand-pink) 38%,
-    var(--brand-magenta) 65%,
-    var(--brand-purple) 100%
-  );
-  --brand-gradient-soft: linear-gradient(
-    115deg,
-    color-mix(in oklch, var(--brand-orange), transparent 78%) 0%,
-    color-mix(in oklch, var(--brand-pink), transparent 78%) 45%,
-    color-mix(in oklch, var(--brand-purple), transparent 82%) 100%
-  );
+  --brand-gradient: linear-gradient(115deg,
+      var(--brand-orange) 0%,
+      var(--brand-pink) 38%,
+      var(--brand-magenta) 65%,
+      var(--brand-purple) 100%);
+  --brand-gradient-soft: linear-gradient(115deg,
+      color-mix(in oklch, var(--brand-orange), transparent 78%) 0%,
+      color-mix(in oklch, var(--brand-pink), transparent 78%) 45%,
+      color-mix(in oklch, var(--brand-purple), transparent 82%) 100%);
   --brand-glow: color-mix(in oklch, var(--brand-magenta), transparent 78%);
   --brand-ring: color-mix(in oklch, var(--brand-magenta), transparent 55%);
 }
@@ -167,6 +163,22 @@
 }
 
 @layer utilities {
+
+  .header {
+    background-color: #ffffff;
+    border-bottom: 1px solid #e2e8f0;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+
+  .dark .header {
+    background-color: #000000;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+
+
   .text-brand-gradient {
     background: var(--brand-gradient);
     background-clip: text;
@@ -200,18 +212,35 @@
 }
 
 @keyframes gradient {
-  to { background-position: var(--bg-size, 300%) 0; }
+ to {
+    background-position: var(--bg-size, 300%) 0;
+  }
 }
 
 @keyframes shimmer-slide {
-  to { transform: translate(calc(100cqw - 100%), 0); }
+  to {
+    transform: translate(calc(100cqw - 100%), 0);
+  }
 }
 
 @keyframes spin-around {
-  0% { transform: translateZ(0) rotate(0); }
-  15%, 35% { transform: translateZ(0) rotate(90deg); }
-  65%, 85% { transform: translateZ(0) rotate(270deg); }
-  100% { transform: translateZ(0) rotate(360deg); }
+  0% {
+    transform: translateZ(0) rotate(0);
+  }
+
+  15%,
+  35% {
+    transform: translateZ(0) rotate(90deg);
+  }
+
+  65%,
+  85% {
+    transform: translateZ(0) rotate(270deg);
+  }
+
+  100% {
+    transform: translateZ(0) rotate(360deg);
+  }
 }
 
 .animate-orb-float {

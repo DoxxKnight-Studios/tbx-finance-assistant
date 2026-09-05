@@ -62,7 +62,7 @@ export async function resolveBank(input: string): Promise<BankResolution> {
     `
     SELECT bank_code, bank_name
     FROM bank
-    WHERE LOWER(TRIM(bank_code)) = $1
+    WHERE LOWER(TRIM(bank_code)) = ?
     LIMIT 1
     `,
     [normalizedInput],
@@ -86,7 +86,7 @@ export async function resolveBank(input: string): Promise<BankResolution> {
     `
     SELECT bank_code, bank_name
     FROM bank
-    WHERE LOWER(TRIM(bank_name)) = $1
+    WHERE LOWER(TRIM(bank_name)) = ?
     ORDER BY bank_name
     LIMIT 10
     `,
@@ -123,7 +123,7 @@ export async function resolveBank(input: string): Promise<BankResolution> {
     `
     SELECT bank_code, bank_name
     FROM bank
-    WHERE LOWER(bank_name) LIKE $1
+    WHERE LOWER(bank_name) LIKE ?
     ORDER BY bank_name
     LIMIT 10
     `,

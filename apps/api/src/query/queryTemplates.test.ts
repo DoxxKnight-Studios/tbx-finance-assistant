@@ -70,9 +70,8 @@ describe("query templates - unit level (no database)", () => {
         aggregation: { function: "sum" },
       });
 
-      expect(text).toContain("lower(t.description) % lower($2)");
-      expect(text).toContain("similarity(lower(t.description), lower($3)) >= $4");
-      expect(params).toEqual(["debit", "INSURANCE PREMIUM", "INSURANCE PREMIUM", 0.3]);
+      expect(text).toContain("MATCH(t.description) AGAINST ($2 IN BOOLEAN MODE)");
+      expect(params).toEqual(["debit", "INSURANCE PREMIUM"]);
       noRawSqlValue(text, "INSURANCE PREMIUM");
     });
 
@@ -437,8 +436,8 @@ describe("query templates - unit level (no database)", () => {
       expect(params[1]).toBe("2026-09-01");
       expect(params[2]).toBe("2026-07-01");
       expect(params[3]).toBe("2026-08-01");
-      expect(text).toContain("FILTER (WHERE t.transaction_date >= $1 AND t.transaction_date < $2)");
-      expect(text).toContain("FILTER (WHERE t.transaction_date >= $3 AND t.transaction_date < $4)");
+      expect(text).toContain("CASE WHEN t.transaction_date >= $1 AND t.transaction_date < $2");
+      expect(text).toContain("CASE WHEN t.transaction_date >= $3 AND t.transaction_date < $4");
     });
 
     it("spend uses debit, income uses credit, transaction_count uses neither", () => {
@@ -446,7 +445,7 @@ describe("query templates - unit level (no database)", () => {
         intent: "financial_comparison", metric: "spend", primary: AUGUST_2026, secondary: JULY_2026,
       });
       expect(spend.params).toContain("debit");
-      expect(spend.text).toMatch(/SUM\(t\.transaction_amount\)/);
+      expect(spend.text).toMatch(/SUM\(CASE WHEN/);
 
       const income = financialComparisonTemplate.build({
         intent: "financial_comparison", metric: "income", primary: AUGUST_2026, secondary: JULY_2026,
@@ -457,10 +456,10 @@ describe("query templates - unit level (no database)", () => {
         intent: "financial_comparison", metric: "transaction_count", primary: AUGUST_2026, secondary: JULY_2026,
       });
       expect(count.params).toEqual(["2026-08-01", "2026-09-01", "2026-07-01", "2026-08-01"]);
-      expect(count.text).toMatch(/COUNT\(\*\)/);
+      expect(count.text).toMatch(/COUNT\(CASE WHEN/);
       // No top-level WHERE (transaction_count applies no type filter) -
       // "WHERE" still legitimately appears inside each FILTER(WHERE ...).
-      expect(count.text).not.toMatch(/FROM "transaction" t\s+WHERE/);
+      expect(count.text).not.toMatch(/FROM `transaction` t\s+WHERE/);
     });
 
     it("returns only the two raw values - no delta/percentage/winner computed in SQL", () => {
