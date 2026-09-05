@@ -30,6 +30,7 @@ export default function App() {
             onEnablePersonalSearch={() => setPersonalSearch(true)}
             onDisablePersonalSearch={() => setPersonalSearch(false)}
           />
+        </div>
       </TooltipProvider>
     </MotionConfig>
   );
