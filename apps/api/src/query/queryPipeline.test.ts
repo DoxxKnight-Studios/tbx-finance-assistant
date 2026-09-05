@@ -82,8 +82,11 @@ describe("intent -> QueryPlanner -> QueryTemplateRegistry -> BuiltQuery", () => 
     expect(built.params).toContain("UNRECONCILED");
   });
 
-  it("does not mark unimplemented intents as executable", () => {
-    expect(isTemplateSupported("reconciliation_summary")).toBe(false);
-    expect(isTemplateSupported("transaction_lookup")).toBe(false);
+  it("marks all supported finance intents as executable", () => {
+    expect(isTemplateSupported("reconciliation_summary")).toBe(true);
+    expect(isTemplateSupported("transaction_lookup")).toBe(true);
+    expect(isTemplateSupported("financial_comparison")).toBe(true);
+    expect(isTemplateSupported("transaction_spend_total")).toBe(true);
+    expect(isTemplateSupported("vendor_payout_largest")).toBe(true);
   });
 });

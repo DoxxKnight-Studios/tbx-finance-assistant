@@ -6,10 +6,14 @@ import {
   type ProcessFinanceMessageResult,
 } from "../ai/messagePipeline.js";
 import { formatFinanceResponse } from "../response/responseFormatter.js";
+import {
+  answerGeneralMessage,
+} from "../ai/generalAssistant.js";
 
 interface ChatRequestBody {
   message?: unknown;
   conversationContext?: unknown;
+  personalSearch?: unknown;
 }
 
 function isNonEmptyString(value: unknown): value is string {
@@ -65,19 +69,55 @@ export function createChatRouter(
       return;
     }
 
-    const result = await processFinanceMessage(
-      body.message,
-      parseFinanceIntent,
-      {
-        previousContext: normalizePreviousContext(
-          body.conversationContext,
-        ),
-      },
-    );
+    const previousContext = normalizePreviousContext(body.conversationContext);
 
-    res
-      .status(statusCodeFor(result.status))
-      .json(formatFinanceResponse(result));
+    try {
+      if (body.personalSearch === false) {
+        const generalResult = await answerGeneralMessage(
+          body.message,
+          previousContext,
+        );
+
+        if (generalResult.status === "answer") {
+          res.status(200).json({ status: "success", answer: generalResult.answer });
+          return;
+        }
+
+        res.status(200).json({
+          status: generalResult.status,
+          answer: generalResult.question,
+          originalMessage: generalResult.originalMessage,
+          conversationContext: generalResult.conversationContext,
+        });
+        return;
+      }
+
+      const result = await processFinanceMessage(
+        body.message,
+        parseFinanceIntent,
+        { previousContext },
+      );
+
+      if (result.status === "unsupported_ai_intent") {
+        res.status(200).json({
+          status: "general_query_confirmation",
+          answer: `${result.message} This looks like a general query. Would you like to disable Personal search and continue?`,
+          originalMessage: body.message,
+          conversationContext: previousContext,
+        });
+        return;
+      }
+
+      res
+        .status(statusCodeFor(result.status))
+        .json(formatFinanceResponse(result));
+    } catch (error) {
+      res.status(500).json({
+        status: "general_error",
+        answer:
+          error instanceof Error ? error.message : "Assistant request failed.",
+      });
+    }
   });
 
   return router;

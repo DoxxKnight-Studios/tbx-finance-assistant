@@ -17,12 +17,23 @@ function nextSuggestions(askedTexts: Set<string>): string[] {
   return SUGGESTED_QUESTIONS.filter((q) => !askedTexts.has(q)).slice(0, 3);
 }
 
-export function ChatShell() {
-  const { theme } = useTheme();
+export function ChatShell({
+  personalSearch,
+  onEnablePersonalSearch,
+  onDisablePersonalSearch,
+}: {
+  personalSearch: boolean;
+  onEnablePersonalSearch: () => void;
+  onDisablePersonalSearch: () => void;
+}) {
+    const { theme } = useTheme();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [draft, setDraft] = useState("");
   const [conversationContext, setConversationContext] = useState<Record<string, unknown>>();
   const [retryingId, setRetryingId] = useState<string | null>(null);
+  const [conversationContext, setConversationContext] = useState<
+    Record<string, unknown> | undefined
+  >();
   const scrollAnchorRef = useRef<HTMLDivElement>(null);
 
   const isBusy = messages.some(
@@ -33,9 +44,14 @@ export function ChatShell() {
     scrollAnchorRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [messages]);
 
-  async function runAssistantReply(assistantId: string, text: string) {
+  async function runAssistantReply(
+    assistantId: string,
+    text: string,
+    context?: Record<string, unknown>,
+    searchMode = personalSearch,
+  ) {
     try {
-      const result = await sendChatMessage(text, conversationContext);
+      const result = await sendChatMessage(text, context, searchMode);
       if (result.conversationContext) {
         setConversationContext(result.conversationContext);
       }
@@ -62,6 +78,47 @@ export function ChatShell() {
     }
   }
 
+  function handleEnablePersonalSearch(message: AssistantChatMessage) {
+    onEnablePersonalSearch();
+    setMessages((prev) =>
+      prev.map((item) =>
+        item.id === message.id && item.role === "assistant"
+          ? { ...item, state: "loading" }
+          : item,
+      ),
+    );
+    void runAssistantReply(message.id, message.replyToText, conversationContext, true);
+  }
+
+  function handleDeclinePersonalSearch(message: AssistantChatMessage) {
+    setMessages((prev) =>
+      prev.map((item) =>
+        item.id === message.id && item.role === "assistant"
+          ? {
+              ...item,
+              result: {
+                ...item.result,
+                status: "general_answer",
+                answer: "Okay. I will keep Personal search off and won't access your finance records.",
+              },
+            }
+          : item,
+      ),
+    );
+  }
+
+  function handleDisablePersonalSearch(message: AssistantChatMessage) {
+    onDisablePersonalSearch();
+    setMessages((prev) =>
+      prev.map((item) =>
+        item.id === message.id && item.role === "assistant"
+          ? { ...item, state: "loading" }
+          : item,
+      ),
+    );
+    void runAssistantReply(message.id, message.replyToText, conversationContext, false);
+  }
+
   async function handleSend(rawText: string) {
     const text = rawText.trim();
     if (!text || isBusy) return;
@@ -78,7 +135,7 @@ export function ChatShell() {
     setMessages((prev) => [...prev, userMessage, assistantMessage]);
     setDraft("");
 
-    await runAssistantReply(assistantId, text);
+    await runAssistantReply(assistantId, text, conversationContext);
   }
 
   async function handleRetry(message: AssistantChatMessage) {
@@ -90,7 +147,7 @@ export function ChatShell() {
           : m,
       ),
     );
-    await runAssistantReply(message.id, message.replyToText);
+    await runAssistantReply(message.id, message.replyToText, conversationContext);
     setRetryingId(null);
   }
 
@@ -119,6 +176,9 @@ export function ChatShell() {
                   message={message}
                   onRetry={handleRetry}
                   retrying={retryingId === message.id}
+                  onEnablePersonalSearch={handleEnablePersonalSearch}
+                  onDeclinePersonalSearch={handleDeclinePersonalSearch}
+                  onDisablePersonalSearch={handleDisablePersonalSearch}
                 />
               ),
             )}
@@ -135,7 +195,14 @@ export function ChatShell() {
         </div>
       )}
 
-      <Composer value={draft} onChange={setDraft} onSubmit={() => handleSend(draft)} disabled={isBusy} theme={theme} />
+      <Composer
+        value={draft}
+        onChange={setDraft}
+        onSubmit={() => handleSend(draft)}
+        disabled={isBusy}
+        personalSearch={personalSearch}
+        theme={theme}
+      />
     </div>
   );
 }

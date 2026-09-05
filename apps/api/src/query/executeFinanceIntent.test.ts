@@ -91,7 +91,7 @@ describe("executeFinanceIntent", () => {
     expect(amounts).toEqual(sorted);
   });
 
-  it("rejects an unsupported intent before touching the template registry", async () => {
+  it("executes a reconciliation summary through its registered template", async () => {
     const spy = vi.spyOn(queryTemplateRegistry, "getQueryTemplate");
 
     const result = await executeFinanceIntent(
@@ -102,12 +102,12 @@ describe("executeFinanceIntent", () => {
       referenceDate,
     );
 
-    expect(result.status).toBe("unsupported_query_intent");
-    if (result.status === "unsupported_query_intent") {
-      expect(result.message).toContain("reconciliation_summary");
+    expect(result.status).toBe("success");
+    if (result.status === "success") {
+      expect(result.template).toBe("reconciliation_summary");
     }
 
-    expect(spy).not.toHaveBeenCalled();
+    expect(spy).toHaveBeenCalledWith("reconciliation_summary");
     spy.mockRestore();
   });
 

@@ -10,11 +10,13 @@ export function Composer({
   onChange,
   onSubmit,
   disabled,
+  personalSearch,
 }: {
   value: string;
   onChange: (value: string) => void;
   onSubmit: () => void;
   disabled: boolean;
+  personalSearch: boolean;
 }) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [focused, setFocused] = useState(false);
@@ -75,7 +77,7 @@ export function Composer({
             onKeyDown={handleKeyDown}
             onFocus={() => setFocused(true)}
             onBlur={() => setFocused(false)}
-            placeholder="Ask about payouts, vendors, or reconciliation…"
+            placeholder={personalSearch ? "Ask about payouts, vendors, or reconciliation…" : "Ask anything…"}
             rows={1}
             aria-label="Message the finance assistant"
             className={cn(
@@ -88,7 +90,9 @@ export function Composer({
         </div>
 
         <p className="mt-2 px-1 text-center text-[11px] text-muted-foreground/70">
-          Answers are generated from your financial records, not estimates.
+          {personalSearch
+            ? "Personal search uses grounded financial records."
+            : "General AI mode does not access your personal finance data."}
         </p>
       </div>
     </div>

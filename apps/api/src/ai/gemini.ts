@@ -13,7 +13,7 @@ function getClient(): GoogleGenAI {
 
 export async function callGemini(userPrompt: string): Promise<string> {
   const client = getClient();
-  const model = env.geminiModel;
+  const model = env.personalSearchModel;
 
   try {
     const response = await client.models.generateContent({

@@ -1,8 +1,15 @@
 import type { IntentName } from "../ai/types.js";
 import type { QueryTemplate } from "./queryTemplates.js";
 import {
+  financialComparisonTemplate,
+  reconciliationSummaryTemplate,
+  transactionLookupTemplate,
+  transactionSpendByCategoryTemplate,
+  transactionSpendByVendorTemplate,
+  transactionSpendTotalTemplate,
   unreconciledTransactionsTemplate,
   vendorPayoutByVendorTemplate,
+  vendorPayoutLargestTemplate,
   vendorPayoutTotalTemplate,
   transactionAmountFilterTemplate,
 } from "./queryTemplates.js";
@@ -15,6 +22,13 @@ import {
 export type SupportedTemplateIntent =
   | "vendor_payout_total"
   | "vendor_payout_by_vendor"
+  | "vendor_payout_largest"
+  | "transaction_spend_total"
+  | "transaction_spend_by_vendor"
+  | "transaction_spend_by_category"
+  | "transaction_lookup"
+  | "reconciliation_summary"
+  | "financial_comparison";
   | "transaction_amount_filter"
   | "unreconciled_transactions";
 
@@ -26,6 +40,13 @@ const queryTemplateRegistry: Record<
   vendor_payout_by_vendor: vendorPayoutByVendorTemplate,
   transaction_amount_filter: transactionAmountFilterTemplate,
   unreconciled_transactions: unreconciledTransactionsTemplate,
+  vendor_payout_largest: vendorPayoutLargestTemplate,
+  transaction_spend_total: transactionSpendTotalTemplate,
+  transaction_spend_by_vendor: transactionSpendByVendorTemplate,
+  transaction_spend_by_category: transactionSpendByCategoryTemplate,
+  transaction_lookup: transactionLookupTemplate,
+  reconciliation_summary: reconciliationSummaryTemplate,
+  financial_comparison: financialComparisonTemplate,
 };
 
 export function isTemplateSupported(

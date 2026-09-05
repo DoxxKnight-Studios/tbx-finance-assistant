@@ -68,6 +68,7 @@ export interface ChatApiResult {
   summary?: FinanceSummary;
   evidence?: FinanceEvidence;
   conversationContext?: Record<string, unknown>;
+  originalMessage?: string;
 }
 
 export type MessageRole = "user" | "assistant";

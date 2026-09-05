@@ -114,6 +114,7 @@ describe("POST /api/chat", () => {
     expect(body.evidence.template).toBe("vendor_payout_total");
     expect(body.evidence.period.start).toBe("2026-08-01");
     expect(Array.isArray(body.evidence.rows)).toBe(true);
+    expect(body.conversationContext.intent).toBe("vendor_payout_total");
   });
 
   it("surfaces ambiguous-vendor clarification instead of silently picking one", async () => {
@@ -131,6 +132,7 @@ describe("POST /api/chat", () => {
     expect(typeof body.answer).toBe("string");
   });
 
+  it("executes a reconciliation summary query", async () => {
   it("carries clarification context into a follow-up vendor selection", async () => {
     const firstResponse = await fetch(`${baseUrl}/api/chat`, {
       method: "POST",
@@ -173,10 +175,11 @@ describe("POST /api/chat", () => {
 
     expect(response.status).toBe(200);
     const body = await response.json();
-    expect(body.status).toBe("unsupported_query_intent");
+    expect(body.status).toBe("success");
+    expect(body.evidence.template).toBe("reconciliation_summary");
   });
 
-  it("fails cleanly for a request outside supported finance intents", async () => {
+  it("asks before switching an unsupported request to general AI mode", async () => {
     const response = await fetch(`${baseUrl}/api/chat`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -185,6 +188,7 @@ describe("POST /api/chat", () => {
 
     expect(response.status).toBe(200);
     const body = await response.json();
-    expect(body.status).toBe("unsupported_ai_intent");
+    expect(body.status).toBe("general_query_confirmation");
+    expect(body.originalMessage).toBe("tell me a joke");
   });
 });
