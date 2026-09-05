@@ -86,12 +86,58 @@ export interface FinanceEvidence {
   [key: string]: unknown;
 }
 
+export interface TechnicalTransformationStep {
+  step: string;
+  description: string;
+}
+
+/**
+ * Mirrors apps/api/src/ai/types.ts FinanceIntent - the exact validated
+ * intent JSON the backend checked Gemini's output against (never
+ * reconstructed on the frontend). Field names vary per intent, hence
+ * the index signature, matching the loose-by-design convention already
+ * used above for FinanceSummary/FinanceEvidence.
+ */
+export interface TechnicalIntent {
+  intent: string;
+  [key: string]: unknown;
+}
+
+/** Mirrors apps/api/src/query/queryTypes.ts QueryPlan - same rationale. */
+export interface TechnicalQueryPlan {
+  intent: string;
+  [key: string]: unknown;
+}
+
+/**
+ * Mirrors apps/api/src/response/responseFormatter.ts TechnicalTrace -
+ * the "how this answer was derived" explainability payload. Only present
+ * on successful responses. renderedSql is a safe debug rendering of the
+ * bound parameters for display only; it is never what actually executed
+ * (execution stays parameterized on the backend). databaseResult is the
+ * real query result already stripped server-side of account_number/
+ * utr_number/entity_id - never re-sanitized or reconstructed here.
+ */
+export interface TechnicalTrace {
+  userQuestion: string;
+  intentName: string;
+  intent: TechnicalIntent;
+  queryPlan: TechnicalQueryPlan;
+  sqlTemplate: string;
+  sqlParameters: unknown[];
+  renderedSql: string;
+  databaseResult: Record<string, unknown>[];
+  transformationSteps: TechnicalTransformationStep[];
+}
+
 /** Normalized shape of whatever /api/chat returned, whatever its status. */
 export interface ChatApiResult {
   status: string;
   answer: string;
   summary?: FinanceSummary;
   evidence?: FinanceEvidence;
+  /** Present only when status is "success" - see TechnicalTrace above. */
+  technical?: TechnicalTrace;
 }
 
 export type MessageRole = "user" | "assistant";

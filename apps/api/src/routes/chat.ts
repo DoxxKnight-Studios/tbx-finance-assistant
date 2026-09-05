@@ -77,7 +77,7 @@ export function createChatRouter(
 
     res
       .status(statusCodeFor(result.status))
-      .json(formatFinanceResponse(result));
+      .json(formatFinanceResponse(result, body.message));
   });
 
   return router;

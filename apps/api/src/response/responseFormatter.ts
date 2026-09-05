@@ -1,6 +1,8 @@
 import type { QueryPipelineSuccess } from "../query/queryPipeline.js";
 import type { ProcessFinanceMessageResult } from "../ai/messagePipeline.js";
-import type { ComparisonMetric, FinanceIntent, TransactionType } from "../ai/types.js";
+import type { ComparisonMetric, FinanceIntent, IntentName, TransactionType } from "../ai/types.js";
+import type { QueryPlan } from "../query/queryTypes.js";
+import type { BuiltQuery } from "../query/queryTemplates.js";
 
 // ============================================================
 // Stable API response contract
@@ -191,11 +193,51 @@ export interface UnsupportedIntentEvidence {
   intent: string;
 }
 
+// ---- Technical/explainability trace ---------------------------------------
+// Hackathon-facing "how this answer was derived" payload. Every field is
+// captured from the SAME single request/DB round trip already performed
+// by queryPipeline.ts - nothing here re-runs a query or asks an LLM to
+// explain itself. Only attached to "success" responses for the 10
+// approved intents.
+
+export interface TransformationStep {
+  /** Short machine-readable slug, e.g. "select_field", "format_currency". */
+  step: string;
+  /** Human-readable, written statically per intent - never LLM-generated. */
+  description: string;
+}
+
+export interface TechnicalTrace {
+  /** The original natural-language question, verbatim. */
+  userQuestion: string;
+  intentName: IntentName;
+  /** The exact validated FinanceIntent Gemini's output produced (post-validation). */
+  intent: FinanceIntent;
+  /** The exact QueryPlan the deterministic planner produced from that intent. */
+  queryPlan: QueryPlan;
+  /** The exact parameterized SQL text sent to PostgreSQL ($1, $2, ... placeholders). */
+  sqlTemplate: string;
+  /** The exact bound parameter values, in placeholder order. */
+  sqlParameters: unknown[];
+  /**
+   * A safe, display-only reconstruction of sqlTemplate with sqlParameters
+   * substituted in for readability - NOT the mechanism used for
+   * execution (execution always uses parameterized text+params via
+   * node-postgres; this is purely a debug rendering of that same query).
+   */
+  renderedSql: string;
+  /** The actual rows PostgreSQL returned, with account_number/utr_number/entity_id stripped. */
+  databaseResult: Record<string, unknown>[];
+  /** Deterministic, statically-written description of how the raw result became the final answer. */
+  transformationSteps: TransformationStep[];
+}
+
 export interface FormattedFinanceResponse {
   status: FinanceResponseStatus;
   answer: string;
   summary?: FinanceSummary;
   evidence?: FinanceEvidence | UnsupportedIntentEvidence;
+  technical?: TechnicalTrace;
 }
 
 // ============================================================
@@ -362,10 +404,75 @@ function transactionEvidenceFromRow(row: Record<string, unknown>): TransactionEv
 }
 
 // ============================================================
+// Technical trace helpers
+// ============================================================
+
+/** Fields that must never appear in the technical trace, even for debugging. */
+const FORBIDDEN_TRACE_KEYS = new Set(["account_number", "utr_number", "entity_id"]);
+
+function sanitizeRowForTrace(row: Record<string, unknown>): Record<string, unknown> {
+  const clean: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(row)) {
+    if (FORBIDDEN_TRACE_KEYS.has(key)) continue;
+    clean[key] = value instanceof Date ? value.toISOString() : value;
+  }
+  return clean;
+}
+
+function sanitizeRowsForTrace(rows: Record<string, unknown>[]): Record<string, unknown>[] {
+  return rows.map(sanitizeRowForTrace);
+}
+
+function sqlLiteral(value: unknown): string {
+  if (value === null || value === undefined) return "NULL";
+  if (typeof value === "number") return String(value);
+  if (typeof value === "boolean") return value ? "TRUE" : "FALSE";
+  if (value instanceof Date) return `'${value.toISOString()}'`;
+  return `'${String(value).replace(/'/g, "''")}'`;
+}
+
+/**
+ * Safe, display-only substitution of the $1/$2/... placeholders in a
+ * BuiltQuery with their bound values, for hackathon explainability only.
+ * queryExecutor.ts never uses this - it always sends `text`/`params`
+ * separately to node-postgres, which parameterizes server-side. This
+ * function only reconstructs a human-readable approximation of that
+ * same query for display, with correct quoting/escaping/date formatting.
+ */
+export function renderSqlWithBoundParams(builtQuery: BuiltQuery): string {
+  return builtQuery.text.replace(/\$(\d+)/g, (match, indexStr: string) => {
+    const index = Number(indexStr) - 1;
+    if (index < 0 || index >= builtQuery.params.length) return match;
+    return sqlLiteral(builtQuery.params[index]);
+  });
+}
+
+function buildTechnicalTrace(
+  result: QueryPipelineSuccess,
+  userQuestion: string,
+  transformationSteps: TransformationStep[],
+): TechnicalTrace {
+  return {
+    userQuestion,
+    intentName: result.intent.intent,
+    intent: result.intent,
+    queryPlan: result.plan,
+    sqlTemplate: result.builtQuery.text,
+    sqlParameters: result.builtQuery.params,
+    renderedSql: renderSqlWithBoundParams(result.builtQuery),
+    databaseResult: sanitizeRowsForTrace(result.rows),
+    transformationSteps,
+  };
+}
+
+// ============================================================
 // Per-intent formatters
 // ============================================================
 
-function formatTransactionSpendTotal(result: QueryPipelineSuccess): FormattedFinanceResponse {
+function formatTransactionSpendTotal(
+  result: QueryPipelineSuccess,
+  userQuestion: string,
+): FormattedFinanceResponse {
   if (result.plan.intent !== "transaction_spend_total") {
     throw new Error("formatTransactionSpendTotal received a mismatched plan");
   }
@@ -391,15 +498,32 @@ function formatTransactionSpendTotal(result: QueryPipelineSuccess): FormattedFin
     amount: rawTotal,
   };
 
+  const steps: TransformationStep[] = [
+    {
+      step: "select_field",
+      description: "Read the `total` field from the single aggregate row PostgreSQL returned (COALESCE(SUM(transaction_amount), 0) WHERE transaction_type = 'debit').",
+    },
+    {
+      step: "format_currency",
+      description: "Formatted the raw NUMERIC string as INR with thousands grouping - no floating-point arithmetic involved.",
+    },
+  ];
+  if (period) steps.push({ step: "format_period", description: "Rendered the resolved date window as a human-readable period label." });
+  if (clause) steps.push({ step: "describe_filters", description: "Appended the bank/program/account filters actually present on the plan to the answer sentence." });
+
   return {
     status: "success",
     answer: `You spent ${formatINR(rawTotal)}${clause}.`,
     summary: { amount: rawTotal, currency: "INR" },
     evidence,
+    technical: buildTechnicalTrace(result, userQuestion, steps),
   };
 }
 
-function formatTransactionIncomeTotal(result: QueryPipelineSuccess): FormattedFinanceResponse {
+function formatTransactionIncomeTotal(
+  result: QueryPipelineSuccess,
+  userQuestion: string,
+): FormattedFinanceResponse {
   if (result.plan.intent !== "transaction_income_total") {
     throw new Error("formatTransactionIncomeTotal received a mismatched plan");
   }
@@ -423,15 +547,32 @@ function formatTransactionIncomeTotal(result: QueryPipelineSuccess): FormattedFi
     amount: rawTotal,
   };
 
+  const steps: TransformationStep[] = [
+    {
+      step: "select_field",
+      description: "Read the `total` field from the single aggregate row PostgreSQL returned (COALESCE(SUM(transaction_amount), 0) WHERE transaction_type = 'credit').",
+    },
+    {
+      step: "format_currency",
+      description: "Formatted the raw NUMERIC string as INR with thousands grouping - no floating-point arithmetic involved.",
+    },
+  ];
+  if (period) steps.push({ step: "format_period", description: "Rendered the resolved date window as a human-readable period label." });
+  if (clause) steps.push({ step: "describe_filters", description: "Appended the bank/program/account filters actually present on the plan to the answer sentence." });
+
   return {
     status: "success",
     answer: `You received ${formatINR(rawTotal)}${clause}.`,
     summary: { amount: rawTotal, currency: "INR" },
     evidence,
+    technical: buildTechnicalTrace(result, userQuestion, steps),
   };
 }
 
-function formatTransactionCount(result: QueryPipelineSuccess): FormattedFinanceResponse {
+function formatTransactionCount(
+  result: QueryPipelineSuccess,
+  userQuestion: string,
+): FormattedFinanceResponse {
   if (result.plan.intent !== "transaction_count") {
     throw new Error("formatTransactionCount received a mismatched plan");
   }
@@ -455,15 +596,31 @@ function formatTransactionCount(result: QueryPipelineSuccess): FormattedFinanceR
     count,
   };
 
+  const steps: TransformationStep[] = [
+    {
+      step: "select_field",
+      description: "Read the `count` field returned by PostgreSQL (COUNT(*)), as a string (bigint), then converted to a number for display.",
+    },
+    {
+      step: "pluralize",
+      description: "Chose singular/plural wording and the optional debit/credit qualifier from the count and the plan's transactionType.",
+    },
+  ];
+  if (period) steps.push({ step: "format_period", description: "Rendered the resolved date window as a human-readable period label." });
+
   return {
     status: "success",
     answer: `There ${verb} ${count} ${typePrefix}${noun}${periodClause}.`,
     summary: { count },
     evidence,
+    technical: buildTechnicalTrace(result, userQuestion, steps),
   };
 }
 
-function formatTransactionSpendByBank(result: QueryPipelineSuccess): FormattedFinanceResponse {
+function formatTransactionSpendByBank(
+  result: QueryPipelineSuccess,
+  userQuestion: string,
+): FormattedFinanceResponse {
   if (result.plan.intent !== "transaction_spend_by_bank") {
     throw new Error("formatTransactionSpendByBank received a mismatched plan");
   }
@@ -488,10 +645,29 @@ function formatTransactionSpendByBank(result: QueryPipelineSuccess): FormattedFi
       ? `Here's the breakdown of your debit spend by bank${periodClause}.`
       : `No debit spend was found${periodClause}.`;
 
-  return { status: "success", answer, evidence };
+  const steps: TransformationStep[] = [
+    {
+      step: "rank_rows",
+      description: "Mapped each row (bank_code, bank_name, total) returned by GROUP BY bank_code, bank_name ORDER BY total DESC into a ranking entry - order preserved exactly as PostgreSQL returned it.",
+    },
+    {
+      step: "compose_summary_sentence",
+      description: "Composed a breakdown sentence without computing any shares/percentages in this layer.",
+    },
+  ];
+
+  return {
+    status: "success",
+    answer,
+    evidence,
+    technical: buildTechnicalTrace(result, userQuestion, steps),
+  };
 }
 
-function formatTransactionSpendByProgram(result: QueryPipelineSuccess): FormattedFinanceResponse {
+function formatTransactionSpendByProgram(
+  result: QueryPipelineSuccess,
+  userQuestion: string,
+): FormattedFinanceResponse {
   if (result.plan.intent !== "transaction_spend_by_program") {
     throw new Error("formatTransactionSpendByProgram received a mismatched plan");
   }
@@ -515,10 +691,29 @@ function formatTransactionSpendByProgram(result: QueryPipelineSuccess): Formatte
       ? `Here's the breakdown of your debit spend by program${periodClause}.`
       : `No debit spend was found${periodClause}.`;
 
-  return { status: "success", answer, evidence };
+  const steps: TransformationStep[] = [
+    {
+      step: "rank_rows",
+      description: "Mapped each row (program_id, total) returned by GROUP BY program_id ORDER BY total DESC into a ranking entry - no program name invented, order preserved exactly as PostgreSQL returned it.",
+    },
+    {
+      step: "compose_summary_sentence",
+      description: "Composed a breakdown sentence without computing any shares/percentages in this layer.",
+    },
+  ];
+
+  return {
+    status: "success",
+    answer,
+    evidence,
+    technical: buildTechnicalTrace(result, userQuestion, steps),
+  };
 }
 
-function formatTransactionSummary(result: QueryPipelineSuccess): FormattedFinanceResponse {
+function formatTransactionSummary(
+  result: QueryPipelineSuccess,
+  userQuestion: string,
+): FormattedFinanceResponse {
   if (result.plan.intent !== "transaction_summary") {
     throw new Error("formatTransactionSummary received a mismatched plan");
   }
@@ -549,15 +744,30 @@ function formatTransactionSummary(result: QueryPipelineSuccess): FormattedFinanc
     net,
   };
 
+  const steps: TransformationStep[] = [
+    {
+      step: "select_fields",
+      description: "Read count/debit_total/credit_total/net directly from the single row PostgreSQL returned. net = credit_total - debit_total was computed inside SQL (a CTE) - never recalculated in this layer.",
+    },
+    {
+      step: "format_currency",
+      description: "Formatted debit_total, credit_total, and net as INR, independently, with no arithmetic performed here.",
+    },
+  ];
+
   return {
     status: "success",
     answer,
     summary: { count, debitTotal, creditTotal, net, currency: "INR" },
     evidence,
+    technical: buildTechnicalTrace(result, userQuestion, steps),
   };
 }
 
-function formatLargestTransaction(result: QueryPipelineSuccess): FormattedFinanceResponse {
+function formatLargestTransaction(
+  result: QueryPipelineSuccess,
+  userQuestion: string,
+): FormattedFinanceResponse {
   if (result.plan.intent !== "largest_transaction") {
     throw new Error("formatLargestTransaction received a mismatched plan");
   }
@@ -581,15 +791,32 @@ function formatLargestTransaction(result: QueryPipelineSuccess): FormattedFinanc
     transaction: transactionEvidenceFromRow(row),
   };
 
+  const steps: TransformationStep[] = [
+    {
+      step: "select_row",
+      description: "Used the single row returned by ORDER BY transaction_amount DESC LIMIT 1 as the largest transaction - never MAX() alone, so the full row is available as evidence.",
+    },
+    { step: "format_currency", description: "Formatted transaction_amount as INR." },
+    { step: "format_date", description: "Formatted transaction_date (a Date object from node-postgres) into a human-readable date label." },
+    {
+      step: "mask_sensitive_fields",
+      description: "Excluded the raw account number, the settlement reference number, and the internal transaction ID from the evidence - only the bank code/name, program ID, reference, and description are surfaced.",
+    },
+  ];
+
   return {
     status: "success",
     answer: `The largest transaction${periodClause} was a ${amount} ${type} on ${dateLabel}.`,
     summary: { amount: String(row.transaction_amount), currency: "INR" },
     evidence,
+    technical: buildTechnicalTrace(result, userQuestion, steps),
   };
 }
 
-function formatTransactionLookup(result: QueryPipelineSuccess): FormattedFinanceResponse {
+function formatTransactionLookup(
+  result: QueryPipelineSuccess,
+  userQuestion: string,
+): FormattedFinanceResponse {
   if (result.plan.intent !== "transaction_lookup") {
     throw new Error("formatTransactionLookup received a mismatched plan");
   }
@@ -612,15 +839,32 @@ function formatTransactionLookup(result: QueryPipelineSuccess): FormattedFinance
     transaction: transactionEvidenceFromRow(row),
   };
 
+  const steps: TransformationStep[] = [
+    {
+      step: "exact_match",
+      description: "Matched transaction_reference_id exactly (WHERE transaction_reference_id = $1) - no fuzzy search, no description search, and no lookup by any sensitive settlement-reference field.",
+    },
+    { step: "format_currency", description: "Formatted transaction_amount as INR." },
+    { step: "format_date", description: "Formatted transaction_date into a human-readable date label." },
+    {
+      step: "mask_sensitive_fields",
+      description: "Excluded the raw account number, the settlement reference number, and the internal transaction ID from the evidence.",
+    },
+  ];
+
   return {
     status: "success",
     answer: `Transaction ${reference} was a ${amount} ${type} on ${dateLabel}.`,
     summary: { amount: String(row.transaction_amount), currency: "INR" },
     evidence,
+    technical: buildTechnicalTrace(result, userQuestion, steps),
   };
 }
 
-function formatAccountBalance(result: QueryPipelineSuccess): FormattedFinanceResponse {
+function formatAccountBalance(
+  result: QueryPipelineSuccess,
+  userQuestion: string,
+): FormattedFinanceResponse {
   if (result.plan.intent !== "account_balance") {
     throw new Error("formatAccountBalance received a mismatched plan");
   }
@@ -644,15 +888,31 @@ function formatAccountBalance(result: QueryPipelineSuccess): FormattedFinanceRes
     availableBalance: rawBalance,
   };
 
+  const steps: TransformationStep[] = [
+    {
+      step: "select_row",
+      description: "Used the single row returned for the resolved account_id (resolved from the user's last4 by accountResolver, before this query ran).",
+    },
+    {
+      step: "mask_account_reference",
+      description: "The query itself never selects the raw account number column - only its last 4 digits (via a SQL RIGHT(...) expression) are read, so the full number never reaches this layer at all.",
+    },
+    { step: "format_currency", description: "Formatted available_balance as INR." },
+  ];
+
   return {
     status: "success",
     answer: `${bankClause} ending ${last4} has an available balance of ${formatINR(rawBalance)}.`,
     summary: { amount: rawBalance, currency: "INR" },
     evidence,
+    technical: buildTechnicalTrace(result, userQuestion, steps),
   };
 }
 
-function formatFinancialComparison(result: QueryPipelineSuccess): FormattedFinanceResponse {
+function formatFinancialComparison(
+  result: QueryPipelineSuccess,
+  userQuestion: string,
+): FormattedFinanceResponse {
   if (result.plan.intent !== "financial_comparison") {
     throw new Error("formatFinancialComparison received a mismatched plan");
   }
@@ -682,36 +942,51 @@ function formatFinancialComparison(result: QueryPipelineSuccess): FormattedFinan
   const summary: ComparisonSummary = { metric, primaryValue, secondaryValue };
   if (!isCount) summary.currency = "INR";
 
+  const steps: TransformationStep[] = [
+    {
+      step: "select_fields",
+      description: "Read primary_value/secondary_value directly from the single row PostgreSQL returned - each computed independently via a FILTER (WHERE ...) clause bound to its own date window, so the two periods can't overlap.",
+    },
+    {
+      step: isCount ? "no_currency_formatting" : "format_currency",
+      description: isCount
+        ? "transaction_count is a plain count, not a monetary value - no currency formatting applied."
+        : "Formatted both values as INR independently - no delta or percentage computed anywhere.",
+    },
+    { step: "label_periods", description: "Rendered human-readable labels for the primary and secondary periods." },
+  ];
+
   return {
     status: "success",
     answer: `You ${verb} ${primaryDisplay}${noun} in ${primaryLabel} versus ${secondaryDisplay}${noun} in ${secondaryLabel}.`,
     summary,
     evidence,
+    technical: buildTechnicalTrace(result, userQuestion, steps),
   };
 }
 
-function formatSuccess(result: QueryPipelineSuccess): FormattedFinanceResponse {
+function formatSuccess(result: QueryPipelineSuccess, userQuestion: string): FormattedFinanceResponse {
   switch (result.template) {
     case "transaction_spend_total":
-      return formatTransactionSpendTotal(result);
+      return formatTransactionSpendTotal(result, userQuestion);
     case "transaction_income_total":
-      return formatTransactionIncomeTotal(result);
+      return formatTransactionIncomeTotal(result, userQuestion);
     case "transaction_count":
-      return formatTransactionCount(result);
+      return formatTransactionCount(result, userQuestion);
     case "transaction_spend_by_bank":
-      return formatTransactionSpendByBank(result);
+      return formatTransactionSpendByBank(result, userQuestion);
     case "transaction_spend_by_program":
-      return formatTransactionSpendByProgram(result);
+      return formatTransactionSpendByProgram(result, userQuestion);
     case "transaction_summary":
-      return formatTransactionSummary(result);
+      return formatTransactionSummary(result, userQuestion);
     case "largest_transaction":
-      return formatLargestTransaction(result);
+      return formatLargestTransaction(result, userQuestion);
     case "transaction_lookup":
-      return formatTransactionLookup(result);
+      return formatTransactionLookup(result, userQuestion);
     case "account_balance":
-      return formatAccountBalance(result);
+      return formatAccountBalance(result, userQuestion);
     case "financial_comparison":
-      return formatFinancialComparison(result);
+      return formatFinancialComparison(result, userQuestion);
     default:
       return {
         status: "unsupported_query_intent",
@@ -724,16 +999,23 @@ function formatSuccess(result: QueryPipelineSuccess): FormattedFinanceResponse {
 /**
  * Converts a ProcessFinanceMessageResult (the /api/chat pipeline's output)
  * into a response the frontend can render directly: a human-readable
- * `answer` plus a deterministic, strongly-typed `evidence` block. Purely
- * a formatting layer - it never calls an LLM, never aggregates, and
- * never invents a value that didn't come back from the database.
+ * `answer` plus a deterministic, strongly-typed `evidence` block, and
+ * (for successful supported requests) a `technical` explainability trace.
+ * Purely a formatting layer - it never calls an LLM, never aggregates,
+ * and never invents a value that didn't come back from the database.
+ *
+ * `userQuestion` is optional and defaults to "" so every existing caller/
+ * test that only cares about answer/summary/evidence keeps compiling
+ * unchanged; routes/chat.ts passes the real original message so the
+ * technical trace's `userQuestion` field is genuine, not reconstructed.
  */
 export function formatFinanceResponse(
   result: ProcessFinanceMessageResult,
+  userQuestion: string = "",
 ): FormattedFinanceResponse {
   switch (result.status) {
     case "success":
-      return formatSuccess(result);
+      return formatSuccess(result, userQuestion);
 
     case "unsupported_query_intent":
       return {

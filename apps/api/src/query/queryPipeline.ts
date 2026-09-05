@@ -6,12 +6,20 @@ import {
 } from "./queryTemplateRegistry.js";
 import { executeQuery } from "./queryExecutor.js";
 import type { QueryPlan } from "./queryTypes.js";
+import type { BuiltQuery } from "./queryTemplates.js";
 
 export interface QueryPipelineSuccess {
   status: "success";
   intent: FinanceIntent;
   plan: QueryPlan;
   template: string;
+  /**
+   * The exact parameterized SQL {text, params} built for this request and
+   * passed to executeQuery - carried through (not rebuilt) so the
+   * response/explainability layer can show the real executed query
+   * without ever running a second query.
+   */
+  builtQuery: BuiltQuery;
   rows: Record<string, unknown>[];
 }
 
@@ -96,6 +104,7 @@ export async function executeFinanceIntent(
       intent,
       plan,
       template: template.name,
+      builtQuery,
       rows,
     };
   } catch (error) {
