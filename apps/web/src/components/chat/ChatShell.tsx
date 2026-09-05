@@ -6,6 +6,7 @@ import { SuggestionChips } from "@/components/chat/SuggestionChips";
 import { UserMessage } from "@/components/chat/UserMessage";
 import { ChatApiError, sendChatMessage } from "@/lib/api";
 import { SUGGESTED_QUESTIONS } from "@/lib/suggestions";
+import { useTheme } from "@/hooks/useTheme";
 import type { AssistantChatMessage, ChatMessage, UserChatMessage } from "@/types/chat";
 
 function makeId(): string {
@@ -17,6 +18,7 @@ function nextSuggestions(askedTexts: Set<string>): string[] {
 }
 
 export function ChatShell() {
+  const { theme } = useTheme();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [draft, setDraft] = useState("");
   const [conversationContext, setConversationContext] = useState<Record<string, unknown>>();
@@ -133,7 +135,7 @@ export function ChatShell() {
         </div>
       )}
 
-      <Composer value={draft} onChange={setDraft} onSubmit={() => handleSend(draft)} disabled={isBusy} />
+      <Composer value={draft} onChange={setDraft} onSubmit={() => handleSend(draft)} disabled={isBusy} theme={theme} />
     </div>
   );
 }

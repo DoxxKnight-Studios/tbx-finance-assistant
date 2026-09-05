@@ -15,7 +15,7 @@ export default function App() {
     // prefers-reduced-motion setting, which plain CSS transitions can't see.
     <MotionConfig reducedMotion="user">
       <TooltipProvider delayDuration={200}>
-        <div className="flex h-dvh flex-col bg-background">
+        <div className="flex h-dvh flex-col bg-background app-background">
           <AppHeader theme={theme} onToggleTheme={toggleTheme} apiHealth={apiHealth} />
           <ChatShell />
         </div>
