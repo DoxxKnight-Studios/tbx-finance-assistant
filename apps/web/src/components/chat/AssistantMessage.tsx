@@ -5,7 +5,12 @@ import { LoadingMessage } from "@/components/chat/LoadingMessage";
 import { PersonalDataPrompt } from "@/components/chat/PersonalDataPrompt";
 import type { AssistantChatMessage } from "@/types/chat";
 
-const ERROR_STATUSES = new Set(["execution_error", "parser_error", "invalid_request"]);
+const ERROR_STATUSES = new Set([
+  "execution_error",
+  "parser_error",
+  "general_error",
+  "invalid_request",
+]);
 
 export function AssistantMessage({
   message,
