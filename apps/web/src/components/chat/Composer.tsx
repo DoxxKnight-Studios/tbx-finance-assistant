@@ -63,7 +63,7 @@ export function Composer({
             onKeyDown={handleKeyDown}
             onFocus={() => setFocused(true)}
             onBlur={() => setFocused(false)}
-            placeholder="Ask about payouts, vendors, or reconciliation…"
+            placeholder="Ask about spend, income, banks, programs, or accounts…"
             rows={1}
             aria-label="Message the finance assistant"
             className="max-h-40 min-h-10 flex-1 resize-none border-0 bg-transparent px-3 py-2 text-[15px] shadow-none focus-visible:ring-0 dark:bg-transparent"

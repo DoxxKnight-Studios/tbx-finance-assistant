@@ -37,7 +37,7 @@ export type QueryPipelineResult =
 
 /**
  * Runs a validated FinanceIntent through the deterministic query layer:
- * QueryPlanner -> QueryTemplateRegistry -> parameterized SQL -> Neon.
+ * QueryPlanner -> QueryTemplateRegistry -> parameterized SQL -> PostgreSQL.
  * Gemini/the AI layer never reaches this function with anything but a
  * validated FinanceIntent, and never supplies SQL directly.
  */
@@ -46,7 +46,7 @@ export async function executeFinanceIntent(
   referenceDate: Date = new Date(),
 ): Promise<QueryPipelineResult> {
   // Fail fast for intents with no executable template, before spending a
-  // vendor-resolution DB round trip on a query we could never run anyway.
+  // bank/account-resolution DB round trip on a query we could never run anyway.
   if (!isTemplateSupported(intent.intent)) {
     return {
       status: "unsupported_query_intent",

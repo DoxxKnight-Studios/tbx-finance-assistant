@@ -1,12 +1,12 @@
 /**
- * Every suggestion here maps to one of the three intents the query planner
- * actually supports today (vendor_payout_total, vendor_payout_by_vendor,
- * unreconciled_transactions - see apps/api/src/query/queryPlanner.ts).
- * The first one matches the worked example in the API contract exactly.
+ * Every suggestion maps to one of the 10 approved intents the query
+ * planner supports (see apps/api/src/ai/types.ts) and uses real,
+ * verifiable scope (August/July 2026, a real seeded account) rather than
+ * unsupported vendor/reconciliation concepts.
  */
 export const SUGGESTED_QUESTIONS = [
-  "How much did we pay Acme Corporation in August?",
-  "Which vendors received the most payouts in August?",
-  "Show me unreconciled transactions.",
-  "How much did we pay all vendors last month?",
+  "How much did we spend in August 2026?",
+  "Which bank had the highest spend in August 2026?",
+  "What was our largest transaction in August 2026?",
+  "Did we spend more in August than July 2026?",
 ] as const;

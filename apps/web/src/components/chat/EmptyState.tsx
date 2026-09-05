@@ -51,7 +51,7 @@ export function EmptyState({
       </h1>
 
       <p className="animate-in fade-in slide-in-from-bottom-2 mt-5 max-w-md text-balance text-center text-base text-muted-foreground duration-500 [animation-delay:380ms] fill-mode-backwards">
-        Ask questions about payouts, transactions, vendors, and reconciliation
+        Ask questions about spend, income, banks, programs, and accounts
         in plain English.
       </p>
 
