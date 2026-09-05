@@ -103,7 +103,7 @@ export function ChatShell() {
         <EmptyState onSelectSuggestion={handleSend} />
       ) : (
         <div className="flex-1 overflow-y-auto">
-          <div className="mx-auto flex max-w-[1050px] flex-col gap-5 px-4 py-6 sm:px-6">
+          <div className="mx-auto flex max-w-[1050px] flex-col gap-6 px-4 py-8 sm:px-6 sm:py-10">
             {messages.map((message) =>
               message.role === "user" ? (
                 <UserMessage key={message.id} text={message.text} />

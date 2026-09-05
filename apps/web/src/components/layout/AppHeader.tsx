@@ -33,10 +33,10 @@ export function AppHeader({
 }) {
   return (
     <header className="sticky top-0 z-20 border-b border-border/60 bg-background/70 backdrop-blur-md">
-      <div className="mx-auto flex h-14 max-w-[1050px] items-center justify-between px-4 sm:px-6">
+      <div className="mx-auto flex h-16 max-w-[1050px] items-center justify-between px-4 sm:px-6">
         <div className="flex items-center gap-2.5">
           <div
-            className="flex size-7 items-center justify-center rounded-lg text-[13px] font-bold text-white shadow-brand-glow"
+            className="flex size-8 items-center justify-center rounded-xl text-[13px] font-bold text-white shadow-brand-glow"
             style={{ background: "var(--brand-gradient)" }}
           >
             T

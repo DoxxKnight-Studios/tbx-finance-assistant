@@ -72,7 +72,7 @@ function VendorRankingEvidence({ evidence }: { evidence: FinanceEvidence }) {
           {rankings.map((row) => (
             <li
               key={`${row.rank}-${row.vendorCode ?? row.vendorName}`}
-              className="flex items-center justify-between gap-3 rounded-lg px-2.5 py-1.5 text-sm odd:bg-muted/40"
+              className="flex items-center justify-between gap-3 rounded-xl px-3 py-2 text-sm odd:bg-muted/40"
             >
               <span className="flex min-w-0 items-center gap-2">
                 <span className="text-xs tabular-nums text-muted-foreground">
@@ -119,7 +119,7 @@ function UnreconciledTransactionsEvidence({ evidence }: { evidence: FinanceEvide
           {rows.map((row, index) => (
             <li
               key={row.transactionReference ?? index}
-              className="flex items-center justify-between gap-3 rounded-lg px-2.5 py-1.5 text-sm odd:bg-muted/40"
+              className="flex items-center justify-between gap-3 rounded-xl px-3 py-2 text-sm odd:bg-muted/40"
             >
               <span className="min-w-0">
                 <span className="block truncate font-medium">
@@ -183,7 +183,7 @@ export function EvidencePanel({
   }
 
   return (
-    <div className="animate-in fade-in slide-in-from-top-1 mt-3 rounded-xl border border-border/60 bg-muted/30 p-3.5 duration-200">
+    <div className="animate-in fade-in slide-in-from-top-1 mt-3 rounded-2xl border border-border/60 bg-muted/30 p-4 duration-200">
       <div className="mb-1 flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
         <Landmark className="size-3.5" />
         {evidence.template ? (TEMPLATE_LABELS[evidence.template] ?? "Verified answer") : "Verified answer"}

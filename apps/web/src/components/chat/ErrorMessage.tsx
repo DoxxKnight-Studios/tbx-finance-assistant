@@ -14,7 +14,7 @@ export function ErrorMessage({
   return (
     <div className="animate-in fade-in slide-in-from-bottom-1 flex items-start gap-3 duration-300">
       <AssistantAvatar />
-      <div className="min-w-0 flex-1 rounded-2xl rounded-tl-sm border border-destructive/25 bg-destructive/5 px-4 py-3.5">
+      <div className="min-w-0 flex-1 rounded-3xl border border-destructive/25 bg-destructive/5 px-5 py-4">
         <div className="flex items-start gap-2">
           <AlertTriangle className="mt-0.5 size-4 shrink-0 text-destructive/80" />
           <div className="min-w-0 flex-1">

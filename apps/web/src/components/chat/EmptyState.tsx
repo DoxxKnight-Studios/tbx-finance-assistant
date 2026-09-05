@@ -1,5 +1,8 @@
+import { useReducedMotion } from "motion/react";
 import { GradientOrbs } from "@/components/decor/GradientOrbs";
 import { SuggestionCard } from "@/components/chat/SuggestionCard";
+import { AnimatedGradientText } from "@/components/ui/animated-gradient-text";
+import { TextAnimate } from "@/components/ui/text-animate";
 import { SUGGESTED_QUESTIONS } from "@/lib/suggestions";
 
 export function EmptyState({
@@ -7,30 +10,52 @@ export function EmptyState({
 }: {
   onSelectSuggestion: (question: string) => void;
 }) {
+  const prefersReducedMotion = useReducedMotion();
+
   return (
-    <div className="relative flex flex-1 flex-col items-center justify-center px-4 py-16 sm:py-20">
+    <div className="relative flex flex-1 flex-col items-center justify-center px-4 py-20 sm:py-24">
       <GradientOrbs />
 
       <div
-        className="mb-6 flex size-14 items-center justify-center rounded-2xl text-2xl font-bold text-white shadow-brand-glow animate-in fade-in zoom-in-95 duration-500"
+        className="mb-7 flex size-16 items-center justify-center rounded-3xl text-2xl font-bold text-white shadow-brand-glow animate-in fade-in zoom-in-95 duration-500"
         style={{ background: "var(--brand-gradient)" }}
         aria-hidden="true"
       >
         T
       </div>
 
-      <h1 className="animate-in fade-in slide-in-from-bottom-2 max-w-lg text-balance text-center text-3xl font-semibold tracking-tight text-foreground duration-500 sm:text-4xl">
-        Your financial data,
-        <br />
-        finally conversational.
+      <h1 className="max-w-lg text-balance text-center text-4xl font-semibold tracking-tight text-foreground sm:text-5xl">
+        {prefersReducedMotion ? (
+          <span className="block">Your financial data,</span>
+        ) : (
+          <TextAnimate
+            as="span"
+            by="word"
+            animation="blurInUp"
+            duration={0.5}
+            startOnView={false}
+            className="block"
+            segmentClassName="inline-block"
+          >
+            Your financial data,
+          </TextAnimate>
+        )}
+        <AnimatedGradientText
+          speed={0.8}
+          colorFrom="var(--brand-pink)"
+          colorTo="var(--brand-purple)"
+          className="animate-in fade-in slide-in-from-bottom-2 block font-semibold duration-500 [animation-delay:280ms] fill-mode-backwards"
+        >
+          finally conversational.
+        </AnimatedGradientText>
       </h1>
 
-      <p className="animate-in fade-in slide-in-from-bottom-2 mt-4 max-w-md text-balance text-center text-sm text-muted-foreground duration-500 [animation-delay:75ms] sm:text-base">
+      <p className="animate-in fade-in slide-in-from-bottom-2 mt-5 max-w-md text-balance text-center text-base text-muted-foreground duration-500 [animation-delay:380ms] fill-mode-backwards">
         Ask questions about payouts, transactions, vendors, and reconciliation
         in plain English.
       </p>
 
-      <div className="animate-in fade-in slide-in-from-bottom-2 mt-10 grid w-full max-w-2xl gap-2.5 duration-500 [animation-delay:150ms] sm:grid-cols-2">
+      <div className="animate-in fade-in slide-in-from-bottom-2 mt-12 grid w-full max-w-2xl gap-3 duration-500 [animation-delay:480ms] fill-mode-backwards sm:grid-cols-2">
         {SUGGESTED_QUESTIONS.map((question) => (
           <SuggestionCard
             key={question}

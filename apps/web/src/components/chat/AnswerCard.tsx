@@ -1,4 +1,5 @@
 import { ChevronDown } from "lucide-react";
+import { motion, useReducedMotion } from "motion/react";
 import { useState } from "react";
 import { AssistantAvatar } from "@/components/chat/AssistantAvatar";
 import { EvidencePanel } from "@/components/chat/EvidencePanel";
@@ -9,6 +10,7 @@ import type { ChatApiResult } from "@/types/chat";
 
 export function AnswerCard({ result }: { result: ChatApiResult }) {
   const [evidenceOpen, setEvidenceOpen] = useState(false);
+  const prefersReducedMotion = useReducedMotion();
 
   const formattedAmount =
     typeof result.summary?.amount === "string"
@@ -22,8 +24,13 @@ export function AnswerCard({ result }: { result: ChatApiResult }) {
       <AssistantAvatar />
 
       <div className="min-w-0 flex-1">
-        <div className="relative overflow-hidden rounded-2xl rounded-tl-sm border border-border/60 bg-card/70 px-4 py-3.5 backdrop-blur-sm">
-          <p className="text-[15px] leading-relaxed text-foreground">
+        <div className="relative overflow-hidden rounded-3xl border border-border/60 bg-card/70 px-5 py-4 backdrop-blur-sm">
+          <motion.p
+            className="text-[15px] leading-relaxed text-foreground"
+            initial={prefersReducedMotion ? undefined : { opacity: 0, y: 6, filter: "blur(4px)" }}
+            animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+            transition={{ duration: 0.4, ease: "easeOut" }}
+          >
             {split ? (
               <>
                 {split.before}
@@ -35,11 +42,11 @@ export function AnswerCard({ result }: { result: ChatApiResult }) {
             ) : (
               result.answer
             )}
-          </p>
+          </motion.p>
 
           {result.evidence && (
             <Collapsible open={evidenceOpen} onOpenChange={setEvidenceOpen}>
-              <CollapsibleTrigger className="mt-2.5 inline-flex items-center gap-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-ring)] rounded">
+              <CollapsibleTrigger className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--brand-ring) rounded">
                 View evidence
                 <ChevronDown
                   className={cn(

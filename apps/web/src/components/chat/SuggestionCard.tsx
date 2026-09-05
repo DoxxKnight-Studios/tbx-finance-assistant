@@ -11,7 +11,7 @@ export function SuggestionCard({
     <button
       type="button"
       onClick={() => onSelect(question)}
-      className="group relative flex w-full items-start justify-between gap-3 overflow-hidden rounded-xl border border-border/70 bg-card/60 px-4 py-3.5 text-left text-sm text-foreground/90 backdrop-blur-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-transparent hover:shadow-[0_10px_30px_-12px_var(--brand-glow)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-ring)]"
+      className="group relative flex w-full items-start justify-between gap-3 overflow-hidden rounded-2xl border border-border/70 bg-card/60 px-5 py-4 text-left text-sm text-foreground/90 backdrop-blur-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-transparent hover:shadow-[0_10px_30px_-12px_var(--brand-glow)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--brand-ring)"
     >
       <span
         aria-hidden="true"
