@@ -1,353 +1,154 @@
-export const VENDOR_NAMES = [
-  "Acme Corporation",
-  "Globex Industries",
-  "Stark Technologies",
-  "Wayne Enterprises",
-  "Umbrella Logistics",
-  "Initech Solutions",
-  "Hooli Systems",
-  "Wonka Foods",
-  "Massive Dynamic",
-  "Soylent Manufacturing",
-  "Cyberdyne Systems",
-  "Vandelay Industries",
-  "Prestige Worldwide",
-  "Oceanic Trading",
-  "Tyrell Computing",
-  "Gringotts Financial",
-  "Oscorp Industries",
-  "Aperture Systems",
-  "Duff Distribution",
-  "Monarch Services",
-  "Pied Piper Technologies",
-  "Vehement Capital",
-  "Dunder Supply Co",
-  "Sterling Office Solutions",
-  "Nakatomi Services",
-  "Wonka Logistics",
-  "LexCorp Solutions",
-  "Gekko Trading",
-  "InGen Research",
-  "Cyberdyne Manufacturing",
-  "Blue Sun Logistics",
-  "Abstergo Industries",
-  "Globex Consulting",
-  "Stark Industrial Supplies",
-  "Wayne Security",
-  "Acme Office Solutions",
-  "Hooli Cloud Services",
-  "Umbrella Healthcare",
-  "Massive Dynamic Labs",
-  "Soylent Foods",
-  "Vandelay Imports",
-  "Prestige Consulting",
-  "Oceanic Cargo",
-  "Tyrell Data Systems",
-  "Oscorp Labs",
-  "Aperture Consulting",
-  "Monarch Technologies",
-  "Pied Piper Cloud",
-  "Sterling Advisory",
-  "Nakatomi Trading",
-  "LexCorp Consulting",
-  "Gekko Capital Services",
-  "InGen Biotechnology",
-  "Blue Sun Energy",
-  "Abstergo Research",
-  "Daily Planet Media",
-  "Wonka Packaging",
-  "Wayne Construction",
-  "Stark Consulting",
-  "Hooli Infrastructure",
-  "Acme Industrial",
-  "Umbrella Distribution",
-  "Massive Dynamic Consulting",
-  "Initech Support Services",
-  "Globex Engineering",
-  "Soylent Distribution",
-  "Vandelay Consulting",
-  "Prestige Events",
-  "Oceanic Freight",
-  "Tyrell Analytics",
-  "Oscorp Engineering",
-  "Aperture Robotics",
-  "Monarch Distribution",
-  "Pied Piper Analytics",
-  "Sterling Technology",
-  "Nakatomi Facilities",
-  "LexCorp Industrial",
-  "Gekko Advisory",
-  "InGen Labs",
-  "Blue Sun Manufacturing",
-  "Abstergo Technologies",
-  "Daily Planet Digital",
-  "Wonka Ingredients",
-  "Wayne Facilities",
-  "Stark Infrastructure",
-  "Hooli Security",
-  "Acme Logistics",
-  "Umbrella Consulting",
-  "Massive Dynamic Security",
-  "Initech Software",
-  "Globex Logistics",
-  "Soylent Manufacturing II",
-  "Vandelay Office Supplies",
-  "Prestige Logistics",
-  "Oceanic Services",
-  "Tyrell Consulting",
-  "Oscorp Security",
-  "Aperture Technologies",
-  "Monarch Professional Services",
-];
+import { deterministicUuid } from "./ids.js";
 
-export const VENDOR_CATEGORIES = [
-  "OFFICE_SUPPLIES",
-  "SOFTWARE",
-  "LOGISTICS",
-  "RAW_MATERIALS",
-  "PROFESSIONAL_SERVICES",
-  "MARKETING",
-  "TRAVEL",
-  "UTILITIES",
-  "FACILITIES",
-  "MANUFACTURING",
-];
+/**
+ * Single deterministic seed constant. Every random draw in the generator
+ * flows from an Rng created from this value (directly, or via a
+ * label-derived variant) - changing it produces a different but still
+ * fully reproducible dataset.
+ */
+export const SEED = 20260905;
 
-export const TRANSACTION_CATEGORIES = [
-  "OFFICE_SUPPLIES",
-  "RAW_MATERIALS",
-  "SOFTWARE",
-  "LOGISTICS",
-  "TRAVEL",
-  "MARKETING",
-  "PROFESSIONAL_SERVICES",
-  "UTILITIES",
-  "RENT",
-  "INSURANCE",
-  "TAX",
-  "OTHER",
-] as const;
+export const COMPANY_NAME = "Northstar Technologies Pvt. Ltd.";
 
-export type TransactionCategory =
-  (typeof TRANSACTION_CATEGORIES)[number];
+/**
+ * The dataset represents exactly one company. There is no entity table
+ * (per the official schema), so every account shares this single
+ * deterministic entity_id.
+ */
+export const ENTITY_ID = deterministicUuid(`northstar-entity:${SEED}`);
 
-export const TRANSACTION_TYPES = [
-  "VENDOR_PAYOUT",
-  "REFUND",
-  "INTERNAL_TRANSFER",
-  "FEE",
-  "RECEIPT",
-  "OTHER",
-] as const;
-
-export type TransactionType =
-  (typeof TRANSACTION_TYPES)[number];
-
-export const TRANSACTION_STATUSES = [
-  "COMPLETED",
-  "PENDING",
-  "FAILED",
-  "CANCELLED",
-] as const;
-
-export type TransactionStatus =
-  (typeof TRANSACTION_STATUSES)[number];
-
-export const RECONCILIATION_STATUSES = [
-  "RECONCILED",
-  "UNRECONCILED",
-  "PARTIAL",
-  "EXCEPTION",
-] as const;
-
-export type ReconciliationStatus =
-  (typeof RECONCILIATION_STATUSES)[number];
-
-export interface AccountDefinition {
+export interface BankSeed {
   code: string;
   name: string;
-  type:
-    | "ASSET"
-    | "LIABILITY"
-    | "EQUITY"
-    | "REVENUE"
-    | "EXPENSE";
-  parentCode: string | null;
+  accountCount: number;
+  /** Relative per-account transaction-volume weight (1.0 = baseline). */
+  activityWeight: number;
 }
 
-export const ACCOUNTS: AccountDefinition[] = [
-  {
-    code: "1000",
-    name: "Cash & Bank",
-    type: "ASSET",
-    parentCode: null,
-  },
-  {
-    code: "1010",
-    name: "Operating Bank Account",
-    type: "ASSET",
-    parentCode: "1000",
-  },
-  {
-    code: "1020",
-    name: "Petty Cash",
-    type: "ASSET",
-    parentCode: "1000",
-  },
-  {
-    code: "1100",
-    name: "Accounts Receivable",
-    type: "ASSET",
-    parentCode: null,
-  },
-  {
-    code: "1200",
-    name: "Prepaid Expenses",
-    type: "ASSET",
-    parentCode: null,
-  },
-  {
-    code: "1300",
-    name: "Equipment",
-    type: "ASSET",
-    parentCode: null,
-  },
-  {
-    code: "2000",
-    name: "Accounts Payable",
-    type: "LIABILITY",
-    parentCode: null,
-  },
-  {
-    code: "2100",
-    name: "Accrued Expenses",
-    type: "LIABILITY",
-    parentCode: null,
-  },
-  {
-    code: "2200",
-    name: "Tax Payable",
-    type: "LIABILITY",
-    parentCode: null,
-  },
-  {
-    code: "2300",
-    name: "Short Term Debt",
-    type: "LIABILITY",
-    parentCode: null,
-  },
-  {
-    code: "3000",
-    name: "Common Equity",
-    type: "EQUITY",
-    parentCode: null,
-  },
-  {
-    code: "3100",
-    name: "Retained Earnings",
-    type: "EQUITY",
-    parentCode: null,
-  },
-  {
-    code: "4000",
-    name: "Operating Revenue",
-    type: "REVENUE",
-    parentCode: null,
-  },
-  {
-    code: "4100",
-    name: "Service Revenue",
-    type: "REVENUE",
-    parentCode: "4000",
-  },
-  {
-    code: "4200",
-    name: "Product Revenue",
-    type: "REVENUE",
-    parentCode: "4000",
-  },
-  {
-    code: "5000",
-    name: "Operating Expenses",
-    type: "EXPENSE",
-    parentCode: null,
-  },
-  {
-    code: "5100",
-    name: "Office Supplies",
-    type: "EXPENSE",
-    parentCode: "5000",
-  },
-  {
-    code: "5200",
-    name: "Software & SaaS",
-    type: "EXPENSE",
-    parentCode: "5000",
-  },
-  {
-    code: "5300",
-    name: "Logistics & Freight",
-    type: "EXPENSE",
-    parentCode: "5000",
-  },
-  {
-    code: "5400",
-    name: "Travel & Accommodation",
-    type: "EXPENSE",
-    parentCode: "5000",
-  },
-  {
-    code: "5500",
-    name: "Marketing",
-    type: "EXPENSE",
-    parentCode: "5000",
-  },
-  {
-    code: "5600",
-    name: "Professional Services",
-    type: "EXPENSE",
-    parentCode: "5000",
-  },
-  {
-    code: "5700",
-    name: "Utilities",
-    type: "EXPENSE",
-    parentCode: "5000",
-  },
-  {
-    code: "5800",
-    name: "Rent & Facilities",
-    type: "EXPENSE",
-    parentCode: "5000",
-  },
-  {
-    code: "5900",
-    name: "Insurance",
-    type: "EXPENSE",
-    parentCode: "5000",
-  },
-  {
-    code: "6000",
-    name: "Taxes & Government Fees",
-    type: "EXPENSE",
-    parentCode: "5000",
-  },
-  {
-    code: "6100",
-    name: "Bank & Payment Fees",
-    type: "EXPENSE",
-    parentCode: "5000",
-  },
-  {
-    code: "6200",
-    name: "Refunds & Adjustments",
-    type: "EXPENSE",
-    parentCode: "5000",
-  },
-  {
-    code: "6300",
-    name: "Miscellaneous Expense",
-    type: "EXPENSE",
-    parentCode: "5000",
-  },
-];
+/**
+ * Account counts sum to exactly 100. HDFC's activityWeight is boosted
+ * so that, combined with already having the most accounts (18), its
+ * total debit spend deterministically leads all other banks by a
+ * plausible (not absurd) margin - see generator.ts.
+ */
+export const BANKS: readonly BankSeed[] = [
+  { code: "HDFC", name: "HDFC BANK LIMITED", accountCount: 18, activityWeight: 1.15 },
+  { code: "ICIC", name: "ICICI BANK LIMITED", accountCount: 15, activityWeight: 1.0 },
+  { code: "SBIN", name: "STATE BANK OF INDIA", accountCount: 13, activityWeight: 1.0 },
+  { code: "UTIB", name: "AXIS BANK LIMITED", accountCount: 12, activityWeight: 1.0 },
+  { code: "KKBK", name: "KOTAK MAHINDRA BANK LIMITED", accountCount: 10, activityWeight: 1.0 },
+  { code: "CNRB", name: "CANARA BANK", accountCount: 9, activityWeight: 1.0 },
+  { code: "UBIN", name: "UNION BANK OF INDIA", accountCount: 8, activityWeight: 1.0 },
+  { code: "AUBL", name: "AU SMALL FINANCE BANK LIMITED", accountCount: 6, activityWeight: 1.0 },
+  { code: "TMBL", name: "TAMILNAD MERCANTILE BANK LIMITED", accountCount: 5, activityWeight: 1.0 },
+  { code: "RATN", name: "RBL BANK LIMITED", accountCount: 4, activityWeight: 1.0 },
+] as const;
+
+export interface ProgramSeed {
+  id: number;
+  accountCount: number;
+  activityWeight: number;
+}
+
+/**
+ * Account counts sum to exactly 100. Program 21's activityWeight is
+ * boosted the same way HDFC's is, so it deterministically leads all
+ * other programs in debit spend.
+ */
+export const PROGRAMS: readonly ProgramSeed[] = [
+  { id: 21, accountCount: 28, activityWeight: 1.15 },
+  { id: 4, accountCount: 24, activityWeight: 1.0 },
+  { id: 46, accountCount: 20, activityWeight: 1.0 },
+  { id: 33, accountCount: 16, activityWeight: 1.0 },
+  { id: 58, accountCount: 12, activityWeight: 1.0 },
+] as const;
+
+export const DATASET_START = { year: 2025, month: 1, day: 1 } as const;
+export const DATASET_END = { year: 2026, month: 8, day: 31 } as const;
+
+export const TOTAL_ACCOUNTS = 100;
+export const TOTAL_TRANSACTIONS = 50_000;
+export const TOTAL_DEBITS = 35_000;
+export const TOTAL_CREDITS = 15_000;
+export const DEMO_REFERENCE_COUNT = 20;
+
+/** Midpoint of the approved "roughly 20-30% higher" August-vs-July target. */
+export const AUGUST_SPIKE_TARGET_RATIO = 1.25;
+
+export const DEBIT_DESCRIPTIONS = [
+  "NEFT - OFFICE RENT",
+  "NEFT - SALARY DISBURSEMENT",
+  "UPI - BUSINESS TRAVEL",
+  "IMPS - UTILITY PAYMENT",
+  "NEFT - SOFTWARE SUBSCRIPTION",
+  "CARD PAYMENT - OFFICE EXPENSE",
+  "NEFT - TAX PAYMENT",
+  "UPI - BUSINESS SERVICES",
+  "NEFT - INSURANCE PREMIUM",
+  "ATM CASH WITHDRAWAL",
+  "BANK CHARGES",
+  "CHEQUE PAYMENT",
+] as const;
+
+export const CREDIT_DESCRIPTIONS = [
+  "NEFT - CUSTOMER RECEIPT",
+  "RTGS - CLIENT PAYMENT",
+  "IMPS - REFUND",
+  "NEFT - BUSINESS RECEIPT",
+  "UPI - CUSTOMER COLLECTION",
+  "INTEREST CREDIT",
+  "REFUND - CARD TRANSACTION",
+  "CHEQUE DEPOSIT",
+] as const;
+
+export interface AmountTier {
+  weight: number;
+  minPaise: number;
+  maxPaise: number;
+}
+
+/**
+ * Ordinary (non-reserved) amount tiers. The top tier's maxPaise is
+ * deliberately capped just under RESERVED_MAX_TRANSACTION_PAISE so no
+ * randomly-drawn amount can ever equal or exceed the one deliberately
+ * reserved largest-transaction-in-the-dataset value.
+ */
+export const RESERVED_MAX_TRANSACTION_PAISE = 500_000_000; // Rs 50,00,000.00
+const ORDINARY_TIER_CAP_PAISE = RESERVED_MAX_TRANSACTION_PAISE - 100; // Rs 49,99,999.00
+
+export const DEBIT_AMOUNT_TIERS: readonly AmountTier[] = [
+  { weight: 0.45, minPaise: 10_000, maxPaise: 500_000 }, // Rs 100 - Rs 5,000
+  { weight: 0.40, minPaise: 500_100, maxPaise: 5_000_000 }, // Rs 5,001 - Rs 50,000
+  { weight: 0.13, minPaise: 5_000_100, maxPaise: 50_000_000 }, // Rs 50,001 - Rs 5,00,000
+  { weight: 0.02, minPaise: 50_000_100, maxPaise: ORDINARY_TIER_CAP_PAISE }, // Rs 5,00,001 - ~Rs 49,99,999
+] as const;
+
+export const CREDIT_AMOUNT_TIERS: readonly AmountTier[] = [
+  { weight: 0.20, minPaise: 50_000, maxPaise: 1_000_000 }, // Rs 500 - Rs 10,000
+  { weight: 0.45, minPaise: 1_000_100, maxPaise: 10_000_000 }, // Rs 10,001 - Rs 1,00,000
+  { weight: 0.30, minPaise: 10_000_100, maxPaise: 100_000_000 }, // Rs 1,00,001 - Rs 10,00,000
+  { weight: 0.05, minPaise: 100_000_100, maxPaise: ORDINARY_TIER_CAP_PAISE }, // Rs 10,00,001 - ~Rs 49,99,999
+] as const;
+
+/**
+ * Five accounts whose opening balance is deliberately back-solved (see
+ * generator.ts) so the final available_balance lands on these exact
+ * targets, guaranteeing the required balance-bucket variety rather than
+ * leaving it to chance. Indices are spread across five different banks.
+ */
+export interface BalanceShowcase {
+  accountIndex: number;
+  label: string;
+  targetPaise: number;
+}
+
+export const BALANCE_SHOWCASE: readonly BalanceShowcase[] = [
+  { accountIndex: 0, label: "strong_positive", targetPaise: 850_000_000 }, // Rs 85,00,000.00 (HDFC)
+  { accountIndex: 25, label: "moderate_positive", targetPaise: 35_000_000 }, // Rs 3,50,000.00 (ICIC)
+  { accountIndex: 50, label: "near_zero", targetPaise: 125_000 }, // Rs 1,250.00 (UTIB)
+  { accountIndex: 75, label: "negative", targetPaise: -27_500_000 }, // -Rs 2,75,000.00 (CNRB)
+  { accountIndex: 99, label: "strongly_negative", targetPaise: -420_000_000 }, // -Rs 42,00,000.00 (RATN)
+] as const;
+
+/** Flat baseline opening balance for the other 95 (non-showcase) accounts. */
+export const BASELINE_OPENING_BALANCE_PAISE = 100_000_000; // Rs 10,00,000.00

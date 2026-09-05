@@ -7,7 +7,6 @@
     "build": "tsc -p tsconfig.build.json",
     "start": "node dist/server.js",
     "seed": "tsx src/seed/index.ts",
-    "seed:fixed": "tsx src/seed/index.ts --transactions 25000 --seed 20260904",
     "test": "vitest run",
     "verify:gemini": "tsx scripts/verifyGeminiParser.ts",
     "test:validator": "tsx --test tests/validator.test.ts"
