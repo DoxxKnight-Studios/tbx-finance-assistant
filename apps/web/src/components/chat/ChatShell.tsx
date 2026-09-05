@@ -19,6 +19,7 @@ function nextSuggestions(askedTexts: Set<string>): string[] {
 export function ChatShell() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [draft, setDraft] = useState("");
+  const [conversationContext, setConversationContext] = useState<Record<string, unknown>>();
   const [retryingId, setRetryingId] = useState<string | null>(null);
   const scrollAnchorRef = useRef<HTMLDivElement>(null);
 
@@ -32,7 +33,10 @@ export function ChatShell() {
 
   async function runAssistantReply(assistantId: string, text: string) {
     try {
-      const result = await sendChatMessage(text);
+      const result = await sendChatMessage(text, conversationContext);
+      if (result.conversationContext) {
+        setConversationContext(result.conversationContext);
+      }
       setMessages((prev) =>
         prev.map((m) =>
           m.id === assistantId && m.role === "assistant"

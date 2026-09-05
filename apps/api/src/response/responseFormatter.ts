@@ -1,5 +1,6 @@
 import type { QueryPipelineSuccess } from "../query/queryPipeline.js";
 import type { ProcessFinanceMessageResult } from "../ai/messagePipeline.js";
+import type { FinanceIntent } from "../ai/types.js";
 
 /**
  * Deterministic, LLM-free view of a ProcessFinanceMessageResult for the
@@ -13,6 +14,7 @@ export interface FormattedFinanceResponse {
   answer: string;
   summary?: Record<string, unknown>;
   evidence?: Record<string, unknown>;
+  conversationContext?: Partial<FinanceIntent>;
 }
 
 const MONTH_NAMES = [
@@ -312,6 +314,7 @@ export function formatFinanceResponse(
       return {
         status: "clarification",
         answer: result.question,
+        conversationContext: result.conversationContext,
       };
 
     case "not_found":

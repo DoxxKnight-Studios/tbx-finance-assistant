@@ -25,6 +25,7 @@ export type QueryPipelineResult =
   | {
       status: "clarification";
       question: string;
+      conversationContext?: Partial<FinanceIntent>;
     }
   | {
       status: "not_found";
@@ -61,6 +62,7 @@ export async function executeFinanceIntent(
     return {
       status: "clarification",
       question: planResult.question,
+      conversationContext: intent,
     };
   }
 
