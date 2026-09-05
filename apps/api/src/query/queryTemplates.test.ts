@@ -44,6 +44,9 @@ describe("new finance intent templates", () => {
         secondary: { startDate: "2026-07-01", endDateExclusive: "2026-08-01" },
       },
     }).text).toContain("primary_total");
+  });
+});
+
 describe("transactionAmountFilterTemplate", () => {
   it("counts transactions below a threshold with parameterized filters", () => {
     const result = transactionAmountFilterTemplate.build({

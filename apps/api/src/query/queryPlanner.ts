@@ -26,7 +26,7 @@ type PlannerSupportedIntent =
   | "transaction_spend_by_category"
   | "transaction_lookup"
   | "reconciliation_summary"
-  | "financial_comparison";
+  | "financial_comparison"
   | "transaction_amount_filter"
   | "unreconciled_transactions";
 
@@ -42,7 +42,7 @@ function isSupportedIntent(
     intent === "transaction_spend_by_category" ||
     intent === "transaction_lookup" ||
     intent === "reconciliation_summary" ||
-    intent === "financial_comparison"
+    intent === "financial_comparison" ||
     intent === "transaction_amount_filter" ||
     intent === "unreconciled_transactions"
   );
@@ -283,6 +283,9 @@ export async function buildQueryPlan(
           filters: {},
           comparison: comparisonFilters,
           aggregation: { function: "sum", field: "amount" },
+        },
+      };
+
     case "transaction_amount_filter":
       return {
         status: "success",

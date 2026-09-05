@@ -286,9 +286,6 @@ export const unreconciledTransactionsTemplate: QueryTemplate = {
 
 export const vendorPayoutLargestTemplate: QueryTemplate = {
   name: "vendor_payout_largest",
-export const transactionAmountFilterTemplate: QueryTemplate = {
-  name: "transaction_amount_filter",
-
   build(plan) {
     const conditions: string[] = [];
     const params: unknown[] = [];
@@ -419,54 +416,45 @@ export const financialComparisonTemplate: QueryTemplate = {
     const primary = plan.comparison?.primary;
     const secondary = plan.comparison?.secondary;
     if (!primary || !secondary) throw new Error("Comparison periods are required");
-    const conditions: string[] = [];
-    const params: unknown[] = [];
-    addSpendConditions(conditions, params, {});
-    addCondition(conditions, params, "t.transaction_date >= ?", primary.startDate);
-    addCondition(conditions, params, "t.transaction_date < ?", primary.endDateExclusive);
-    const primaryStart = params.length - 1;
-    const primaryEnd = params.length;
-    addCondition(conditions, params, "t.transaction_date >= ?", secondary.startDate);
-    addCondition(conditions, params, "t.transaction_date < ?", secondary.endDateExclusive);
-    const secondaryStart = params.length - 1;
-    const secondaryEnd = params.length;
+
+    const params: unknown[] = ["COMPLETED", "RECEIPT", "REFUND"];
+    params.push(primary.startDate, primary.endDateExclusive, secondary.startDate, secondary.endDateExclusive);
+
     return {
       text: `
         SELECT
-          COALESCE(SUM(CASE WHEN t.transaction_date >= $${primaryStart} AND t.transaction_date < $${primaryEnd} THEN t.amount ELSE 0 END), 0) AS primary_total,
-          COALESCE(SUM(CASE WHEN t.transaction_date >= $${secondaryStart} AND t.transaction_date < $${secondaryEnd} THEN t.amount ELSE 0 END), 0) AS secondary_total
+          COALESCE(SUM(CASE WHEN t.transaction_date >= $4 AND t.transaction_date < $5 THEN t.amount ELSE 0 END), 0) AS primary_total,
+          COALESCE(SUM(CASE WHEN t.transaction_date >= $6 AND t.transaction_date < $7 THEN t.amount ELSE 0 END), 0) AS secondary_total
         FROM transactions t
-        WHERE t.status = $1 AND t.transaction_type NOT IN ($2, $3)
-          AND ((t.transaction_date >= $${primaryStart} AND t.transaction_date < $${primaryEnd})
-            OR (t.transaction_date >= $${secondaryStart} AND t.transaction_date < $${secondaryEnd}))
+        WHERE t.status = $1
+          AND t.transaction_type NOT IN ($2, $3)
+          AND ((t.transaction_date >= $4 AND t.transaction_date < $5)
+            OR (t.transaction_date >= $6 AND t.transaction_date < $7))
+      `.trim(),
+      params,
+    };
+  },
+};
 
+export const transactionAmountFilterTemplate: QueryTemplate = {
+  name: "transaction_amount_filter",
+  build(plan) {
     if (plan.filters.amountLessThan === undefined) {
       throw new Error("transaction_amount_filter requires amountLessThan");
     }
 
+    const conditions: string[] = [];
+    const params: unknown[] = [];
     addCondition(conditions, params, "t.amount < ?", plan.filters.amountLessThan);
-
-    if (plan.filters.vendorId) {
-      addCondition(conditions, params, "t.vendor_id = ?", plan.filters.vendorId);
-    }
-
-    if (plan.filters.category) {
-      addCondition(conditions, params, "t.category = ?", plan.filters.category);
-    }
-
-    if (plan.filters.startDate) {
-      addCondition(conditions, params, "t.transaction_date >= ?", plan.filters.startDate);
-    }
-
-    if (plan.filters.endDateExclusive) {
-      addCondition(conditions, params, "t.transaction_date < ?", plan.filters.endDateExclusive);
-    }
+    if (plan.filters.vendorId) addCondition(conditions, params, "t.vendor_id = ?", plan.filters.vendorId);
+    if (plan.filters.category) addCondition(conditions, params, "t.category = ?", plan.filters.category);
+    addDateConditions(conditions, params, plan.filters);
 
     return {
       text: `
         SELECT COUNT(*) AS count
         FROM transactions t
-        WHERE ${conditions.length > 0 ? conditions.join("\nAND ") : "TRUE"}
+        WHERE ${conditions.join("\nAND ")}
       `.trim(),
       params,
     };

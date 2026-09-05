@@ -340,6 +340,8 @@ function formatGenericSuccess(
     default:
       return formatUnsupportedTemplate(result);
   }
+}
+
 function formatTransactionAmountFilter(
   result: QueryPipelineSuccess,
 ): FormattedFinanceResponse {
@@ -408,7 +410,6 @@ function formatSuccess(
         ...formatGenericSuccess(result),
         conversationContext: result.intent,
       };
-      return formatUnreconciledTransactions(result);
     case "transaction_amount_filter":
       return formatTransactionAmountFilter(result);
     default:

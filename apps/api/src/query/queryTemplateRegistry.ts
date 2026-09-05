@@ -28,7 +28,7 @@ export type SupportedTemplateIntent =
   | "transaction_spend_by_category"
   | "transaction_lookup"
   | "reconciliation_summary"
-  | "financial_comparison";
+  | "financial_comparison"
   | "transaction_amount_filter"
   | "unreconciled_transactions";
 
