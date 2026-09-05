@@ -112,10 +112,10 @@ export function createChatRouter(
         .status(statusCodeFor(result.status))
         .json(formatFinanceResponse(result));
     } catch (error) {
+      console.error("Chat request failed:", error);
       res.status(500).json({
         status: "general_error",
-        answer:
-          error instanceof Error ? error.message : "Assistant request failed.",
+        answer: "The assistant could not complete that request. Please try again.",
       });
     }
   });

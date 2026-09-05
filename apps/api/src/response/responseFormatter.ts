@@ -340,6 +340,8 @@ function formatGenericSuccess(
     default:
       return formatUnsupportedTemplate(result);
   }
+}
+
 function formatTransactionAmountFilter(
   result: QueryPipelineSuccess,
 ): FormattedFinanceResponse {
@@ -408,9 +410,11 @@ function formatSuccess(
         ...formatGenericSuccess(result),
         conversationContext: result.intent,
       };
-      return formatUnreconciledTransactions(result);
     case "transaction_amount_filter":
-      return formatTransactionAmountFilter(result);
+      return {
+        ...formatTransactionAmountFilter(result),
+        conversationContext: result.intent,
+      };
     default:
       return formatUnsupportedTemplate(result);
   }
@@ -441,8 +445,11 @@ export function formatFinanceResponse(
       return {
         status: "clarification",
         answer: result.question,
-        conversationContext:
-          "partialIntent" in result ? result.partialIntent : undefined,
+        conversationContext: "partialIntent" in result
+          ? result.partialIntent
+          : "conversationContext" in result
+            ? result.conversationContext
+            : undefined,
       };
 
     case "not_found":
