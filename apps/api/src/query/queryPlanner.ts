@@ -171,7 +171,10 @@ export async function buildQueryPlan(
             plan: {
               intent: "transaction_spend_total",
               transactionType: "debit",
-              filters,
+              filters: {
+                ...filters,
+                descriptionQuery: intent.description_query,
+              },
               aggregation: { function: "sum" },
             },
           };

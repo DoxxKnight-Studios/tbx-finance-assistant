@@ -73,6 +73,7 @@ export type FinanceSummary =
 
 export interface SpendTotalEvidence {
   template: "transaction_spend_total";
+  descriptionQuery?: string;
   period?: PeriodEvidence;
   bank?: BankEvidenceRef;
   programId?: number;
@@ -481,6 +482,7 @@ function formatTransactionSpendTotal(
   const account = accountFilterEvidence(result.intent);
 
   let clause = "";
+  if (filters.descriptionQuery) clause += ` matching "${filters.descriptionQuery}"`;
   if (filters.bankCode) clause += ` through ${filters.bankCode}`;
   if (filters.programId !== undefined) clause += ` for program ${filters.programId}`;
   if (account) clause += ` for the account ending ${account.last4}`;
@@ -488,6 +490,7 @@ function formatTransactionSpendTotal(
 
   const evidence: SpendTotalEvidence = {
     template: "transaction_spend_total",
+    descriptionQuery: filters.descriptionQuery,
     period: periodFromWindow(filters.dateWindow),
     bank: bankEvidenceFromCode(filters.bankCode),
     programId: filters.programId,

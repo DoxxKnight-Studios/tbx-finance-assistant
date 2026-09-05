@@ -52,6 +52,24 @@ describe("transaction_spend_total", () => {
     expect(formatted.summary).toEqual({ amount: "252786141.26", currency: "INR" });
   });
 
+  it("includes the description phrase in the spend answer and evidence", () => {
+    const result = success(
+      { intent: "transaction_spend_total", description_query: "INSURANCE PREMIUM" },
+      {
+        intent: "transaction_spend_total",
+        transactionType: "debit",
+        filters: { descriptionQuery: "INSURANCE PREMIUM" },
+        aggregation: { function: "sum" },
+      },
+      [{ total: "12500.00" }],
+    );
+
+    const formatted = formatFinanceResponse(result);
+
+    expect(formatted.answer).toBe('You spent ₹12,500.00 matching "INSURANCE PREMIUM".');
+    expect(formatted.evidence).toMatchObject({ descriptionQuery: "INSURANCE PREMIUM" });
+  });
+
   it("includes the bank in the answer only when a bank filter is actually present", () => {
     const result = success(
       { intent: "transaction_spend_total", bank: { code: "HDFC" }, date_range: { type: "month", year: 2026, month: 8 } },
