@@ -1,9 +1,10 @@
 /**
  * Mirrors apps/api/src/response/responseFormatter.ts (FormattedFinanceResponse)
  * and the status values produced by apps/api/src/ai/messagePipeline.ts.
- * Kept intentionally loose (Record<string, unknown>) where the backend
- * itself types evidence loosely - the frontend must not assume shapes the
- * API doesn't actually guarantee.
+ * Kept intentionally loose (optional fields, no strict discriminated
+ * union) where the backend itself only guarantees a shape per status/
+ * template - the frontend must not assume fields the API doesn't
+ * actually promise for a given response.
  */
 export type FinanceStatus =
   | "success"
@@ -19,6 +20,12 @@ export interface FinanceSummary {
   amount?: string;
   currency?: string;
   count?: number;
+  debitTotal?: string;
+  creditTotal?: string;
+  net?: string;
+  metric?: string;
+  primaryValue?: string;
+  secondaryValue?: string;
   [key: string]: unknown;
 }
 
@@ -27,35 +34,54 @@ export interface PeriodEvidence {
   endExclusive: string;
 }
 
-export interface VendorEvidence {
-  name?: string;
+export interface BankEvidence {
   code?: string;
+  name?: string;
 }
 
-export interface VendorRankingRow {
-  rank: number;
-  vendorCode?: string;
-  vendorName?: string;
+export interface AccountEvidence {
+  last4?: string;
+}
+
+/** A single ranking row - bank and program fields are both optional so
+ * one shape covers transaction_spend_by_bank and _by_program alike. */
+export interface SpendRankingRow {
+  bankCode?: string;
+  bankName?: string;
+  programId?: number;
   total?: string;
 }
 
-export interface UnreconciledRow {
-  transactionId?: string;
-  transactionReference?: string;
+export interface TransactionEvidenceRow {
   transactionDate?: string;
-  vendorCode?: string;
-  vendorName?: string;
+  transactionType?: string;
   amount?: string;
-  category?: string;
-  reconciliationStatus?: string;
+  reference?: string | null;
+  description?: string | null;
+  bank?: BankEvidence;
+  programId?: number;
 }
 
 export interface FinanceEvidence {
   template?: string;
-  rows?: unknown[];
-  rankings?: VendorRankingRow[];
   period?: PeriodEvidence;
-  vendor?: VendorEvidence;
+  bank?: BankEvidence;
+  programId?: number;
+  account?: AccountEvidence;
+  rankings?: SpendRankingRow[];
+  amount?: string;
+  count?: number;
+  transactionType?: string;
+  debitTotal?: string;
+  creditTotal?: string;
+  net?: string;
+  transaction?: TransactionEvidenceRow;
+  availableBalance?: string;
+  primaryPeriod?: PeriodEvidence;
+  secondaryPeriod?: PeriodEvidence;
+  primaryValue?: string;
+  secondaryValue?: string;
+  metric?: string;
   intent?: string;
   [key: string]: unknown;
 }
