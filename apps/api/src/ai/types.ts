@@ -25,6 +25,7 @@ export interface FinanceIntent {
   "transaction_spend_total",
   "transaction_spend_by_vendor",
   "transaction_spend_by_category",
+  "transaction_amount_filter",
   "unreconciled_transactions",
   "reconciliation_summary",
   "transaction_lookup",
@@ -75,6 +76,7 @@ export interface FinanceIntent {
   intent: IntentName;
   vendor?: VendorEntity;
   category?: string;
+  amount_less_than?: number;
   transaction_reference?: string;
   date_range?: DateRange;
   comparison?: ComparisonPeriod;

@@ -52,6 +52,7 @@ export interface UnreconciledRow {
 
 export interface FinanceEvidence {
   template?: string;
+  amountLessThan?: number;
   rows?: unknown[];
   rankings?: VendorRankingRow[];
   period?: PeriodEvidence;

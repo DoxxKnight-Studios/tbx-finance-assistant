@@ -248,6 +248,26 @@ describe("formatFinanceResponse - unreconciled_transactions", () => {
 });
 
 describe("formatFinanceResponse - unsupported and non-success statuses", () => {
+  it("formats the transaction amount threshold count", () => {
+    const formatted = formatFinanceResponse({
+      status: "success",
+      intent: {
+        intent: "transaction_amount_filter",
+        amount_less_than: 5000,
+      },
+      plan: {
+        intent: "transaction_amount_filter",
+        filters: { amountLessThan: 5000 },
+        aggregation: { function: "count" },
+      },
+      template: "transaction_amount_filter",
+      rows: [{ count: "42" }],
+    });
+
+    expect(formatted.answer).toBe("Found 42 transactions under 5,000.");
+    expect(formatted.summary).toEqual({ count: 42 });
+  });
+
   it("returns an explicit unsupported response for the not-yet-implemented intents", () => {
     const result: ProcessFinanceMessageResult = {
       status: "unsupported_query_intent",

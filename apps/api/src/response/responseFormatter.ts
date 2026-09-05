@@ -264,6 +264,34 @@ function formatUnreconciledTransactions(
   };
 }
 
+function formatTransactionAmountFilter(
+  result: QueryPipelineSuccess,
+): FormattedFinanceResponse {
+  const rawCount = result.rows[0]?.count;
+  const count = Number(rawCount ?? 0);
+  const threshold = result.intent.amount_less_than;
+  const thresholdLabel = threshold === undefined ? "the requested amount" : threshold.toLocaleString("en-IN");
+
+  const evidence: Record<string, unknown> = {
+    template: result.template,
+    rows: result.rows,
+    amountLessThan: threshold,
+  };
+
+  const period = periodEvidence(
+    result.plan.filters.startDate,
+    result.plan.filters.endDateExclusive,
+  );
+  if (period) evidence.period = period;
+
+  return {
+    status: "success",
+    answer: `Found ${count.toLocaleString("en-IN")} transaction${count === 1 ? "" : "s"} under ${thresholdLabel}.`,
+    summary: { count },
+    evidence,
+  };
+}
+
 function formatUnsupportedTemplate(
   result: QueryPipelineSuccess,
 ): FormattedFinanceResponse {
@@ -284,6 +312,8 @@ function formatSuccess(
       return formatVendorPayoutByVendor(result);
     case "unreconciled_transactions":
       return formatUnreconciledTransactions(result);
+    case "transaction_amount_filter":
+      return formatTransactionAmountFilter(result);
     default:
       return formatUnsupportedTemplate(result);
   }
