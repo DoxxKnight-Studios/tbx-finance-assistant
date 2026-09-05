@@ -18,6 +18,7 @@ const requiredDateIntents = new Set([
   "transaction_spend_total",
   "transaction_spend_by_vendor",
   "transaction_spend_by_category",
+  "vendor_payout_largest",
 ]);
 
 export function validateIntent(

@@ -22,7 +22,15 @@ export const env = {
     return geminiApiKey;
   },
 
-  get geminiModel(): string {
-    return process.env.GEMINI_MODEL || "gemini-3.1-flash-lite";
+  get personalSearchModel(): string {
+    return (
+      process.env.PERSONAL_SEARCH_MODEL ||
+      process.env.GEMINI_MODEL ||
+      "gemini-3.1-flash-lite"
+    );
+  },
+
+  get generalAiModel(): string {
+    return process.env.GENERAL_AI_MODEL || "gemini-3.6-flash";
   },
 };

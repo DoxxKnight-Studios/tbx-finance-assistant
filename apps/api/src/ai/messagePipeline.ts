@@ -38,6 +38,11 @@ export type FinanceIntentParser = (
 export type ProcessFinanceMessageResult =
   | QueryPipelineResult
   | {
+      status: "clarification";
+      question: string;
+      partialIntent?: Partial<FinanceIntent>;
+    }
+  | {
       status: "unsupported_ai_intent";
       message: string;
     }
@@ -98,6 +103,7 @@ export async function processFinanceMessage(
     return {
       status: "clarification",
       question: parsed.question,
+      partialIntent: parsed.partialIntent,
     };
   }
 

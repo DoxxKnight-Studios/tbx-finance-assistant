@@ -79,7 +79,7 @@ describe("processFinanceMessage", () => {
     expect(result.status).toBe("unsupported_ai_intent");
   });
 
-  it("surfaces intents with no executable template as unsupported_query_intent", async () => {
+  it("executes a reconciliation summary intent", async () => {
     const mockParser: FinanceIntentParser = async () => ({
       status: "success",
       intent: {
@@ -94,7 +94,10 @@ describe("processFinanceMessage", () => {
       { referenceDate },
     );
 
-    expect(result.status).toBe("unsupported_query_intent");
+    expect(result.status).toBe("success");
+    if (result.status === "success") {
+      expect(result.template).toBe("reconciliation_summary");
+    }
   });
 
   it("propagates vendor ambiguity from the query layer as clarification", async () => {

@@ -20,7 +20,14 @@ export type QueryPlanningResult =
 type PlannerSupportedIntent =
   | "vendor_payout_total"
   | "vendor_payout_by_vendor"
-  | "unreconciled_transactions";
+  | "unreconciled_transactions"
+  | "vendor_payout_largest"
+  | "transaction_spend_total"
+  | "transaction_spend_by_vendor"
+  | "transaction_spend_by_category"
+  | "transaction_lookup"
+  | "reconciliation_summary"
+  | "financial_comparison";
 
 function isSupportedIntent(
   intent: FinanceIntent["intent"],
@@ -28,7 +35,14 @@ function isSupportedIntent(
   return (
     intent === "vendor_payout_total" ||
     intent === "vendor_payout_by_vendor" ||
-    intent === "unreconciled_transactions"
+    intent === "unreconciled_transactions" ||
+    intent === "vendor_payout_largest" ||
+    intent === "transaction_spend_total" ||
+    intent === "transaction_spend_by_vendor" ||
+    intent === "transaction_spend_by_category" ||
+    intent === "transaction_lookup" ||
+    intent === "reconciliation_summary" ||
+    intent === "financial_comparison"
   );
 }
 
@@ -111,6 +125,19 @@ export async function buildQueryPlan(
     };
   }
 
+  const comparisonFilters = intent.comparison
+    ? {
+        primary: {
+          startDate: resolveDateRange(intent.comparison.primary, referenceDate).start,
+          endDateExclusive: resolveDateRange(intent.comparison.primary, referenceDate).endExclusive,
+        },
+        secondary: {
+          startDate: resolveDateRange(intent.comparison.secondary, referenceDate).start,
+          endDateExclusive: resolveDateRange(intent.comparison.secondary, referenceDate).endExclusive,
+        },
+      }
+    : undefined;
+
   switch (intent.intent) {
     case "vendor_payout_total":
       return {
@@ -175,6 +202,85 @@ export async function buildQueryPlan(
           },
 
           limit: Math.min(intent.limit ?? 20, 100),
+        },
+      };
+
+    case "vendor_payout_largest":
+      return {
+        status: "success",
+        plan: {
+          intent: "vendor_payout_largest",
+          filters: { vendorId, ...dateFilters },
+          sort: { field: "amount", direction: "desc" },
+          limit: 1,
+        },
+      };
+
+    case "transaction_spend_total":
+      return {
+        status: "success",
+        plan: {
+          intent: "transaction_spend_total",
+          filters: { vendorId, category: intent.category, ...dateFilters },
+          aggregation: { function: "sum", field: "amount" },
+        },
+      };
+
+    case "transaction_spend_by_vendor":
+      return {
+        status: "success",
+        plan: {
+          intent: "transaction_spend_by_vendor",
+          filters: { category: intent.category, ...dateFilters },
+          aggregation: { function: "sum", field: "amount" },
+          groupBy: "vendor",
+          sort: { field: "amount", direction: "desc" },
+          limit: Math.min(intent.limit ?? 10, 100),
+        },
+      };
+
+    case "transaction_spend_by_category":
+      return {
+        status: "success",
+        plan: {
+          intent: "transaction_spend_by_category",
+          filters: { vendorId, ...dateFilters },
+          aggregation: { function: "sum", field: "amount" },
+          groupBy: "category",
+          sort: { field: "amount", direction: "desc" },
+          limit: Math.min(intent.limit ?? 10, 100),
+        },
+      };
+
+    case "transaction_lookup":
+      return {
+        status: "success",
+        plan: {
+          intent: "transaction_lookup",
+          filters: { transactionReference: intent.transaction_reference },
+          limit: 1,
+        },
+      };
+
+    case "reconciliation_summary":
+      return {
+        status: "success",
+        plan: {
+          intent: "reconciliation_summary",
+          filters: { vendorId, ...dateFilters },
+          groupBy: "status",
+          sort: { field: "count", direction: "desc" },
+        },
+      };
+
+    case "financial_comparison":
+      return {
+        status: "success",
+        plan: {
+          intent: "financial_comparison",
+          filters: {},
+          comparison: comparisonFilters,
+          aggregation: { function: "sum", field: "amount" },
         },
       };
 

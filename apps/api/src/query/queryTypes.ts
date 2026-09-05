@@ -40,6 +40,10 @@ export interface QuerySort {
 export interface QueryPlan {
   intent: IntentName;
   filters: QueryFilters;
+  comparison?: {
+    primary: QueryFilters;
+    secondary: QueryFilters;
+  };
   aggregation?: QueryAggregationSpec;
   groupBy?: QueryGroupBy;
   sort?: QuerySort;

@@ -1,5 +1,6 @@
 import type { QueryPipelineSuccess } from "../query/queryPipeline.js";
 import type { ProcessFinanceMessageResult } from "../ai/messagePipeline.js";
+import type { FinanceIntent } from "../ai/types.js";
 
 /**
  * Deterministic, LLM-free view of a ProcessFinanceMessageResult for the
@@ -13,6 +14,7 @@ export interface FormattedFinanceResponse {
   answer: string;
   summary?: Record<string, unknown>;
   evidence?: Record<string, unknown>;
+  conversationContext?: Partial<FinanceIntent>;
 }
 
 const MONTH_NAMES = [
@@ -262,6 +264,84 @@ function formatUnreconciledTransactions(
   };
 }
 
+function formatGenericSuccess(
+  result: QueryPipelineSuccess,
+): FormattedFinanceResponse {
+  const firstRow = result.rows[0] as Record<string, unknown> | undefined;
+  const period = periodEvidence(
+    result.plan.filters.startDate,
+    result.plan.filters.endDateExclusive,
+  );
+  const evidence: Record<string, unknown> = {
+    template: result.template,
+    rows: result.rows,
+  };
+  if (period) evidence.period = period;
+  if (result.plan.comparison) {
+    evidence.comparison = result.plan.comparison;
+  }
+
+  switch (result.template) {
+    case "vendor_payout_largest": {
+      if (!firstRow) return { status: "success", answer: "No completed vendor payout was found.", evidence };
+      return {
+        status: "success",
+        answer: `The largest completed vendor payout was ${formatINR(String(firstRow.amount))}.`,
+        summary: { amount: String(firstRow.amount), currency: "INR" },
+        evidence,
+      };
+    }
+    case "transaction_spend_total": {
+      const total = firstRow?.total;
+      if (total === undefined) return { status: "success", answer: "No transaction spend was found.", evidence };
+      return {
+        status: "success",
+        answer: `Total transaction spend was ${formatINR(String(total))}.`,
+        summary: { amount: String(total), currency: "INR" },
+        evidence,
+      };
+    }
+    case "transaction_spend_by_vendor":
+      return {
+        status: "success",
+        answer: result.rows.length ? "Here is the transaction spend by vendor." : "No transaction spend was found.",
+        evidence: { ...evidence, rankings: result.rows.map((row, index) => ({ rank: index + 1, vendorCode: row.vendor_code, vendorName: row.vendor_name, total: row.total })) },
+      };
+    case "transaction_spend_by_category":
+      return {
+        status: "success",
+        answer: result.rows.length ? "Here is the transaction spend by category." : "No transaction spend was found.",
+        evidence,
+      };
+    case "transaction_lookup":
+      return {
+        status: "success",
+        answer: firstRow ? `Found transaction ${String(firstRow.transaction_reference)}.` : "I couldn't find that transaction.",
+        evidence,
+      };
+    case "reconciliation_summary":
+      return {
+        status: "success",
+        answer: result.rows.length ? "Here is the reconciliation summary." : "No reconciliation records were found.",
+        summary: { count: result.rows.reduce((total, row) => total + Number(row.transaction_count ?? 0), 0) },
+        evidence,
+      };
+    case "financial_comparison": {
+      const primary = firstRow?.primary_total;
+      const secondary = firstRow?.secondary_total;
+      if (primary === undefined || secondary === undefined) return { status: "success", answer: "I couldn't calculate that comparison.", evidence };
+      return {
+        status: "success",
+        answer: `Primary-period spend was ${formatINR(String(primary))}; secondary-period spend was ${formatINR(String(secondary))}.`,
+        summary: { primaryAmount: String(primary), secondaryAmount: String(secondary), currency: "INR" },
+        evidence,
+      };
+    }
+    default:
+      return formatUnsupportedTemplate(result);
+  }
+}
+
 function formatUnsupportedTemplate(
   result: QueryPipelineSuccess,
 ): FormattedFinanceResponse {
@@ -277,11 +357,31 @@ function formatSuccess(
 ): FormattedFinanceResponse {
   switch (result.template) {
     case "vendor_payout_total":
-      return formatVendorPayoutTotal(result);
+      return {
+        ...formatVendorPayoutTotal(result),
+        conversationContext: result.intent,
+      };
     case "vendor_payout_by_vendor":
-      return formatVendorPayoutByVendor(result);
+      return {
+        ...formatVendorPayoutByVendor(result),
+        conversationContext: result.intent,
+      };
     case "unreconciled_transactions":
-      return formatUnreconciledTransactions(result);
+      return {
+        ...formatUnreconciledTransactions(result),
+        conversationContext: result.intent,
+      };
+    case "vendor_payout_largest":
+    case "transaction_spend_total":
+    case "transaction_spend_by_vendor":
+    case "transaction_spend_by_category":
+    case "transaction_lookup":
+    case "reconciliation_summary":
+    case "financial_comparison":
+      return {
+        ...formatGenericSuccess(result),
+        conversationContext: result.intent,
+      };
     default:
       return formatUnsupportedTemplate(result);
   }
@@ -312,6 +412,8 @@ export function formatFinanceResponse(
       return {
         status: "clarification",
         answer: result.question,
+        conversationContext:
+          "partialIntent" in result ? result.partialIntent : undefined,
       };
 
     case "not_found":

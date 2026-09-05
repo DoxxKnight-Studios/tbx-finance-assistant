@@ -14,6 +14,8 @@ export class ChatApiError extends Error {}
  */
 export async function sendChatMessage(
   message: string,
+  conversationContext?: Record<string, unknown>,
+  personalSearch = true,
 ): Promise<ChatApiResult> {
   let response: Response;
 
@@ -21,7 +23,7 @@ export async function sendChatMessage(
     response = await fetch(`${API_BASE_URL}/api/chat`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message }),
+      body: JSON.stringify({ message, conversationContext, personalSearch }),
     });
   } catch {
     throw new ChatApiError(
@@ -63,6 +65,10 @@ export async function sendChatMessage(
     answer,
     summary: record.summary as ChatApiResult["summary"],
     evidence: record.evidence as ChatApiResult["evidence"],
+    conversationContext: record.conversationContext as
+      | Record<string, unknown>
+      | undefined,
+    originalMessage: record.originalMessage as string | undefined,
   };
 }
 

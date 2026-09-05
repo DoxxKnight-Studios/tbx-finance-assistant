@@ -1,9 +1,50 @@
 import { describe, expect, it } from "vitest";
 import {
+  financialComparisonTemplate,
+  reconciliationSummaryTemplate,
+  transactionLookupTemplate,
+  transactionSpendByCategoryTemplate,
+  transactionSpendByVendorTemplate,
+  transactionSpendTotalTemplate,
   unreconciledTransactionsTemplate,
   vendorPayoutByVendorTemplate,
+  vendorPayoutLargestTemplate,
   vendorPayoutTotalTemplate,
 } from "./queryTemplates.js";
+
+describe("new finance intent templates", () => {
+  it("builds parameterized spend and lookup queries", () => {
+    const total = transactionSpendTotalTemplate.build({
+      intent: "transaction_spend_total",
+      filters: { category: "SOFTWARE", startDate: "2026-08-01", endDateExclusive: "2026-09-01" },
+    });
+    expect(total.text).toContain("SUM(t.amount)");
+    expect(total.params).toContain("SOFTWARE");
+    expect(total.text).not.toContain("SOFTWARE");
+
+    const lookup = transactionLookupTemplate.build({
+      intent: "transaction_lookup",
+      filters: { transactionReference: "TXN-123" },
+    });
+    expect(lookup.text).toContain("t.transaction_reference = $1");
+    expect(lookup.params).toEqual(["TXN-123"]);
+  });
+
+  it("builds grouped, largest, reconciliation, and comparison queries", () => {
+    expect(transactionSpendByVendorTemplate.build({ intent: "transaction_spend_by_vendor", filters: {} }).text).toContain("GROUP BY v.id");
+    expect(transactionSpendByCategoryTemplate.build({ intent: "transaction_spend_by_category", filters: {} }).text).toContain("GROUP BY t.category");
+    expect(vendorPayoutLargestTemplate.build({ intent: "vendor_payout_largest", filters: {} }).text).toContain("ORDER BY t.amount DESC");
+    expect(reconciliationSummaryTemplate.build({ intent: "reconciliation_summary", filters: {} }).text).toContain("GROUP BY r.status");
+    expect(financialComparisonTemplate.build({
+      intent: "financial_comparison",
+      filters: {},
+      comparison: {
+        primary: { startDate: "2026-08-01", endDateExclusive: "2026-09-01" },
+        secondary: { startDate: "2026-07-01", endDateExclusive: "2026-08-01" },
+      },
+    }).text).toContain("primary_total");
+  });
+});
 
 describe("vendorPayoutTotalTemplate", () => {
   it("builds a parameterized query without a vendor filter", () => {
