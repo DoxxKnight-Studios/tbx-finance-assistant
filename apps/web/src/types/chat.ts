@@ -138,6 +138,7 @@ export interface ChatApiResult {
   evidence?: FinanceEvidence;
   /** Present only when status is "success" - see TechnicalTrace above. */
   technical?: TechnicalTrace;
+  conversationContext?: Record<string, unknown>;
 }
 
 export type MessageRole = "user" | "assistant";

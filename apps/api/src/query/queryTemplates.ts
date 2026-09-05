@@ -4,6 +4,7 @@ import type {
   ProgramScopeFilters,
   QueryPlan,
 } from "./queryTypes.js";
+import { getDescriptionSearchMode } from "../db/features.js";
 
 export interface BuiltQuery {
   text: string;
@@ -103,12 +104,11 @@ function buildAggregateTotalQuery(
 
   addCondition(conditions, params, "t.transaction_type = ?", transactionType);
   if (filters.descriptionQuery) {
-    addCondition(
-      conditions,
-      params,
-      "MATCH(t.description) AGAINST (? IN BOOLEAN MODE)",
-      filters.descriptionQuery,
-    );
+    const searchCondition =
+      getDescriptionSearchMode() === "fulltext"
+        ? "MATCH(t.description) AGAINST (? IN BOOLEAN MODE)"
+        : "LOWER(t.description) LIKE CONCAT('%', LOWER(?), '%')";
+    addCondition(conditions, params, searchCondition, filters.descriptionQuery);
   }
   const { joinAccount } = addScopeConditions(conditions, params, filters, "t");
 
@@ -398,6 +398,20 @@ export const accountBalanceTemplate: QueryTemplate = {
         LIMIT 1
       `.trim(),
       params,
+    };
+  },
+};
+
+export const accountCountTemplate: QueryTemplate = {
+  name: "account_count",
+  build(plan) {
+    if (plan.intent !== "account_count") {
+      throw new Error("accountCountTemplate received a mismatched plan");
+    }
+
+    return {
+      text: "SELECT COUNT(*) AS count FROM account",
+      params: [],
     };
   },
 };

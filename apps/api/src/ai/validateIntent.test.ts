@@ -137,6 +137,10 @@ describe("isValidFinanceIntent - one valid example per approved intent", () => {
     ).toBe(true);
   });
 
+  it("account_count", () => {
+    expect(isValidFinanceIntent({ intent: "account_count" })).toBe(true);
+  });
+
   it("account_balance with a disambiguating bank", () => {
     expect(
       isValidFinanceIntent({

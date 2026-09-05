@@ -217,6 +217,9 @@ export function isValidFinanceIntent(value: unknown): value is FinanceIntent {
         isOptionalBankFilter(fi.bank)
       );
 
+    case "account_count":
+      return hasOnlyAllowedKeys(fi, ["intent"]);
+
     case "financial_comparison":
       return hasOnlyAllowedKeys(fi, ["intent", "comparison"]) && isValidComparison(fi.comparison);
 

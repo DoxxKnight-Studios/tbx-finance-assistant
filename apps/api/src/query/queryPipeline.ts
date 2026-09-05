@@ -1,4 +1,5 @@
 import type { FinanceIntent } from "../ai/types.js";
+import type { ConversationContext } from "../ai/conversationContext.js";
 import { buildQueryPlan } from "./queryPlanner.js";
 import {
   getQueryTemplate,
@@ -21,6 +22,7 @@ export interface QueryPipelineSuccess {
    */
   builtQuery: BuiltQuery;
   rows: Record<string, unknown>[];
+  conversationContext?: ConversationContext;
 }
 
 export type QueryPipelineResult =
@@ -33,6 +35,7 @@ export type QueryPipelineResult =
   | {
       status: "clarification";
       question: string;
+      conversationContext?: ConversationContext;
     }
   | {
       status: "not_found";

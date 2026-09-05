@@ -22,6 +22,7 @@ export const SUPPORTED_INTENTS = [
   "largest_transaction",
   "transaction_lookup",
   "account_balance",
+  "account_count",
   "financial_comparison",
 ] as const;
 
@@ -163,6 +164,10 @@ export interface AccountBalanceIntent {
   bank?: BankFilter;
 }
 
+export interface AccountCountIntent {
+  intent: "account_count";
+}
+
 export interface FinancialComparisonIntent {
   intent: "financial_comparison";
   /**
@@ -187,6 +192,7 @@ export type FinanceIntent =
   | LargestTransactionIntent
   | TransactionLookupIntent
   | AccountBalanceIntent
+  | AccountCountIntent
   | FinancialComparisonIntent;
 
 // ---- Parser result envelope ----------------------------------------------

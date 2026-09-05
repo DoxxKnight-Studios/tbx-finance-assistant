@@ -2,6 +2,7 @@ import type { IntentName } from "../ai/types.js";
 import type { QueryTemplate } from "./queryTemplates.js";
 import {
   accountBalanceTemplate,
+  accountCountTemplate,
   financialComparisonTemplate,
   largestTransactionTemplate,
   transactionCountTemplate,
@@ -31,6 +32,7 @@ const queryTemplateRegistry: Record<SupportedTemplateIntent, QueryTemplate> = {
   largest_transaction: largestTransactionTemplate,
   transaction_lookup: transactionLookupTemplate,
   account_balance: accountBalanceTemplate,
+  account_count: accountCountTemplate,
   financial_comparison: financialComparisonTemplate,
 };
 

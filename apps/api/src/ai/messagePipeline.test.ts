@@ -22,6 +22,33 @@ const KNOWN_LAST4 = "7622";
 describe("processFinanceMessage - new FinanceIntent contract", () => {
   const referenceDate = new Date("2026-09-05T00:00:00Z");
 
+  it("forwards previous context and preserves clarification context", async () => {
+    let receivedContext: ConversationContext | null | undefined;
+    const previousContext: ConversationContext = {
+      intent: "transaction_spend_total",
+      date_range: { type: "month", year: 2026, month: 8 },
+    };
+
+    const result = await processFinanceMessage(
+      "What about July?",
+      async (_message, context) => {
+        receivedContext = context;
+        return {
+          status: "clarification",
+          question: "Which account should I use?",
+          partialIntent: previousContext,
+        };
+      },
+      { previousContext, referenceDate },
+    );
+
+    expect(receivedContext).toEqual(previousContext);
+    expect(result.status).toBe("clarification");
+    if (result.status === "clarification") {
+      expect(result.conversationContext).toEqual(previousContext);
+    }
+  });
+
   it("runs a valid new-contract intent all the way through to a real result", async () => {
     const mockParser: FinanceIntentParser = async () => ({
       status: "success",

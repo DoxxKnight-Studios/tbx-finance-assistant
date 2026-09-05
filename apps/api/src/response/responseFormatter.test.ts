@@ -178,6 +178,16 @@ describe("transaction_count", () => {
     expect(formatFinanceResponse(result).answer).toBe("There were 587 debit transactions in August 2026.");
   });
 
+  it("handles MySQL numeric COUNT results", () => {
+    const result = success(
+      { intent: "transaction_count" },
+      { intent: "transaction_count", filters: {}, aggregation: { function: "count" } },
+      [{ count: 823 }],
+    );
+
+    expect(formatFinanceResponse(result).answer).toBe("There were 823 transactions.");
+  });
+
   it("uses singular wording for a count of exactly 1", () => {
     const result = success(
       { intent: "transaction_count" },
@@ -458,6 +468,20 @@ describe("transaction_lookup", () => {
 });
 
 describe("account_balance", () => {
+  it("formats account_count without exposing account details", () => {
+    const formatted = formatFinanceResponse(
+      success(
+        { intent: "account_count" },
+        { intent: "account_count" },
+        [{ count: 100 }],
+      ),
+    );
+
+    expect(formatted.answer).toBe("There are 100 accounts.");
+    expect(formatted.summary).toEqual({ count: 100 });
+    expect(formatted.evidence).toEqual({ template: "account_count", count: 100 });
+  });
+
   it("uses 'available balance' wording and only a masked/last4 account reference", () => {
     const result = success(
       { intent: "account_balance", account: { last4: "7622" } },

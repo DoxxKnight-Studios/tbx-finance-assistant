@@ -1,5 +1,8 @@
 import type { FinanceIntent } from "./types.js";
-import type { ConversationContext } from "./conversationContext.js";
+import {
+  toConversationContext,
+  type ConversationContext,
+} from "./conversationContext.js";
 import { validateIntent } from "./validateIntent.js";
 import {
   executeFinanceIntent,
@@ -24,6 +27,7 @@ export type IntentParserResult =
   | {
       status: "clarification";
       question: string;
+      conversationContext?: ConversationContext;
       partialIntent?: ConversationContext;
     }
   | {
@@ -99,6 +103,7 @@ export async function processFinanceMessage(
     return {
       status: "clarification",
       question: parsed.question,
+      conversationContext: parsed.partialIntent,
     };
   }
 
@@ -109,6 +114,7 @@ export async function processFinanceMessage(
       return {
         status: "clarification",
         question: validation.clarification,
+        conversationContext: { intent: parsed.intent.intent },
       };
     }
 
@@ -118,8 +124,17 @@ export async function processFinanceMessage(
     };
   }
 
-  return executeFinanceIntent(
+  const result = await executeFinanceIntent(
     validation.intent,
     options.referenceDate ?? new Date(),
   );
+
+  if (result.status === "success") {
+    return {
+      ...result,
+      conversationContext: toConversationContext(result.intent),
+    };
+  }
+
+  return result;
 }

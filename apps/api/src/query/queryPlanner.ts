@@ -304,6 +304,12 @@ export async function buildQueryPlan(
       };
     }
 
+    case "account_count":
+      return {
+        status: "success",
+        plan: { intent: "account_count" },
+      };
+
     case "financial_comparison":
       return {
         status: "success",

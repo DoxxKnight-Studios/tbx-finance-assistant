@@ -3,6 +3,7 @@ import type { ProcessFinanceMessageResult } from "../ai/messagePipeline.js";
 import type { ComparisonMetric, FinanceIntent, IntentName, TransactionType } from "../ai/types.js";
 import type { QueryPlan } from "../query/queryTypes.js";
 import type { BuiltQuery } from "../query/queryTemplates.js";
+import type { ConversationContext } from "../ai/conversationContext.js";
 
 // ============================================================
 // Stable API response contract
@@ -167,6 +168,11 @@ export interface AccountBalanceEvidence {
   availableBalance: string;
 }
 
+export interface AccountCountEvidence {
+  template: "account_count";
+  count: number;
+}
+
 export interface ComparisonEvidence {
   template: "financial_comparison";
   metric: ComparisonMetric;
@@ -186,6 +192,7 @@ export type FinanceEvidence =
   | LargestTransactionEvidence
   | TransactionLookupEvidence
   | AccountBalanceEvidence
+  | AccountCountEvidence
   | ComparisonEvidence;
 
 /** The only evidence shape used outside the 10 approved templates. */
@@ -238,6 +245,7 @@ export interface FormattedFinanceResponse {
   summary?: FinanceSummary;
   evidence?: FinanceEvidence | UnsupportedIntentEvidence;
   technical?: TechnicalTrace;
+  conversationContext?: ConversationContext;
 }
 
 // ============================================================
@@ -577,8 +585,8 @@ function formatTransactionCount(
     throw new Error("formatTransactionCount received a mismatched plan");
   }
   const { filters, transactionType } = result.plan;
-  const rawCount = firstRowStringField(result.rows, "count") ?? "0";
-  const count = Number(rawCount);
+  const rawCount = result.rows[0]?.count;
+  const count = Number(rawCount ?? 0);
   const period = formatPeriodLabel(filters.dateWindow?.startDate, filters.dateWindow?.endDateExclusive);
 
   const verb = count === 1 ? "was" : "were";
@@ -909,6 +917,32 @@ function formatAccountBalance(
   };
 }
 
+function formatAccountCount(
+  result: QueryPipelineSuccess,
+  userQuestion: string,
+): FormattedFinanceResponse {
+  if (result.plan.intent !== "account_count") {
+    throw new Error("formatAccountCount received a mismatched plan");
+  }
+
+  const rawCount = result.rows[0]?.count;
+  const count = Number(rawCount ?? 0);
+  const evidence: AccountCountEvidence = { template: "account_count", count };
+
+  return {
+    status: "success",
+    answer: `There ${count === 1 ? "is" : "are"} ${count} account${count === 1 ? "" : "s"}.`,
+    summary: { count },
+    evidence,
+    technical: buildTechnicalTrace(result, userQuestion, [
+      {
+        step: "select_count",
+        description: "Read the account count returned by MySQL without exposing account numbers or balances.",
+      },
+    ]),
+  };
+}
+
 function formatFinancialComparison(
   result: QueryPipelineSuccess,
   userQuestion: string,
@@ -985,6 +1019,8 @@ function formatSuccess(result: QueryPipelineSuccess, userQuestion: string): Form
       return formatTransactionLookup(result, userQuestion);
     case "account_balance":
       return formatAccountBalance(result, userQuestion);
+    case "account_count":
+      return formatAccountCount(result, userQuestion);
     case "financial_comparison":
       return formatFinancialComparison(result, userQuestion);
     default:
@@ -1015,7 +1051,10 @@ export function formatFinanceResponse(
 ): FormattedFinanceResponse {
   switch (result.status) {
     case "success":
-      return formatSuccess(result, userQuestion);
+      return {
+        ...formatSuccess(result, userQuestion),
+        conversationContext: result.conversationContext,
+      };
 
     case "unsupported_query_intent":
       return {
@@ -1028,6 +1067,7 @@ export function formatFinanceResponse(
       return {
         status: "clarification",
         answer: result.question,
+        conversationContext: result.conversationContext,
       };
 
     case "not_found":

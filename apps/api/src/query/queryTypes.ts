@@ -132,6 +132,10 @@ export interface AccountBalancePlan {
   accountId: string;
 }
 
+export interface AccountCountPlan {
+  intent: "account_count";
+}
+
 export interface FinancialComparisonPlan {
   intent: "financial_comparison";
   metric: ComparisonMetric;
@@ -149,4 +153,5 @@ export type QueryPlan =
   | LargestTransactionPlan
   | TransactionLookupPlan
   | AccountBalancePlan
+  | AccountCountPlan
   | FinancialComparisonPlan;

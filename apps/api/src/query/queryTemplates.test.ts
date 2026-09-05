@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { query } from "../db/client.js";
 import {
   accountBalanceTemplate,
+  accountCountTemplate,
   financialComparisonTemplate,
   largestTransactionTemplate,
   transactionCountTemplate,
@@ -42,6 +43,12 @@ function assertOnlyPlaceholders(text: string, params: unknown[]): void {
 }
 
 describe("query templates - unit level (no database)", () => {
+  it("builds a count-only account query", () => {
+    const result = accountCountTemplate.build({ intent: "account_count" });
+    expect(result.text).toBe("SELECT COUNT(*) AS count FROM account");
+    expect(result.params).toEqual([]);
+  });
+
   describe("transaction_spend_total", () => {
     const basePlan: QueryPlan = {
       intent: "transaction_spend_total",

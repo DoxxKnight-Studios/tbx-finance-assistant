@@ -63,7 +63,7 @@ Never return code fences.
 Never return commentary.
 Never return a final financial answer.
 
-SUPPORTED INTENTS (EXACTLY THESE 10):
+SUPPORTED INTENTS (EXACTLY THESE 11):
 
 1. "transaction_spend_total"
    Overall company spend (total debit amount), optionally scoped to a
@@ -104,7 +104,10 @@ SUPPORTED INTENTS (EXACTLY THESE 10):
    The available balance of one account, identified by the last 4 digits
    of its account number (never the full number).
 
-10. "financial_comparison"
+10. "account_count"
+  Count the number of accounts in the user's financial data.
+
+11. "financial_comparison"
     Comparing one metric (spend, income, or transaction_count) between
     two time periods, such as August vs July or this month vs last month.
 
@@ -119,6 +122,7 @@ transaction_summary: date_range?, bank?, program_id?, account?
 largest_transaction: date_range?, transaction_type?, bank?, program_id?, account?
 transaction_lookup: transaction_reference (required)
 account_balance: account (required), bank? (only to disambiguate)
+account_count: no fields
 financial_comparison: comparison (required) = { metric, primary, secondary }
 
 Do NOT add any field not listed above for the given intent, and do NOT add:
@@ -173,6 +177,15 @@ ACCOUNT:
 Only the last 4 digits are ever captured: { "account": { "last4": "9069" } }.
 Never include a full account_number, and never calculate or guess a
 full account number from a partial one.
+
+ACCOUNT COUNT:
+
+For questions such as "How many accounts are there?" return:
+
+{
+  "status": "success",
+  "intent": { "intent": "account_count" }
+}
 
 TRANSACTION LOOKUP:
 
