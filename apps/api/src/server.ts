@@ -2,10 +2,13 @@ import express from "express";
 import cors from "cors";
 import { env } from "./config/env.js";
 import { checkDatabaseConnection } from "./db/health.js";
+import { ensureDatabaseFeatures } from "./db/features.js";
 import { createChatRouter } from "./routes/chat.js";
 import { parseFinanceIntent } from "./ai/intentParser.js";
 
 async function main(): Promise<void> {
+  await ensureDatabaseFeatures();
+
   const app = express();
 
   app.use(cors());

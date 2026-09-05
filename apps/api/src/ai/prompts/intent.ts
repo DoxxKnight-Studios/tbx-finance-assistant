@@ -67,7 +67,8 @@ SUPPORTED INTENTS (EXACTLY THESE 10):
 
 1. "transaction_spend_total"
    Overall company spend (total debit amount), optionally scoped to a
-   date range, bank, program, or account.
+  date range, bank, program, account, or a phrase from the transaction
+  description.
 
 2. "transaction_income_total"
    Overall company income (total credit amount), optionally scoped to a
@@ -109,7 +110,7 @@ SUPPORTED INTENTS (EXACTLY THESE 10):
 
 SUPPORTED FIELDS PER INTENT:
 
-transaction_spend_total: date_range?, bank?, program_id?, account?
+transaction_spend_total: date_range?, description_query?, bank?, program_id?, account?
 transaction_income_total: date_range?, bank?, program_id?, account?
 transaction_count: date_range?, transaction_type?, bank?, program_id?, account?
 transaction_spend_by_bank: date_range?, bank?
@@ -131,6 +132,28 @@ Do NOT add any field not listed above for the given intent, and do NOT add:
 - full account_number
 - utr_number
 - limit (the backend decides how many rows to return)
+
+TRANSACTION DESCRIPTION SEARCH:
+
+When the user names a payment purpose or description phrase, extract the
+meaningful phrase into description_query. This is a similarity search against
+transaction.description, not an exact transaction reference lookup.
+
+Example:
+
+"How much did I spend on INSURANCE PREMIUM?"
+->
+{
+  "status": "success",
+  "intent": {
+    "intent": "transaction_spend_total",
+    "description_query": "INSURANCE PREMIUM"
+  }
+}
+
+Keep explicit date, bank, program, and account filters alongside the phrase.
+Do not put generic words such as "how much", "spent", "spend", "payment",
+or "transaction" into description_query.
 
 BANK:
 

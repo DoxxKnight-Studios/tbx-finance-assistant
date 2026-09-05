@@ -62,6 +62,20 @@ describe("query templates - unit level (no database)", () => {
       expect(text).not.toMatch(/SELECT\s+\*/i);
     });
 
+    it("uses indexed trigram similarity for a description phrase", () => {
+      const { text, params } = transactionSpendTotalTemplate.build({
+        intent: "transaction_spend_total",
+        transactionType: "debit",
+        filters: { descriptionQuery: "INSURANCE PREMIUM" },
+        aggregation: { function: "sum" },
+      });
+
+      expect(text).toContain("lower(t.description) % lower($2)");
+      expect(text).toContain("similarity(lower(t.description), lower($3)) >= $4");
+      expect(params).toEqual(["debit", "INSURANCE PREMIUM", "INSURANCE PREMIUM", 0.3]);
+      noRawSqlValue(text, "INSURANCE PREMIUM");
+    });
+
     it("applies date, bank, program, and account filters as parameters", () => {
       const plan: QueryPlan = {
         intent: "transaction_spend_total",

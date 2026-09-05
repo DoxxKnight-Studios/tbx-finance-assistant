@@ -55,6 +55,8 @@ CREATE TABLE "transaction" (
 -- indexing, so each one below is justified by a specific approved
 -- intent rather than added speculatively.
 
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+
 -- FK join column, not auto-indexed by Postgres (only the referenced
 -- PK side is). Needed for transaction_spend_by_bank, which must join
 -- "transaction" -> account -> bank.
@@ -69,6 +71,11 @@ CREATE INDEX idx_transaction_account_id ON "transaction" (account_id);
 -- largest_transaction, financial_comparison) filters on a date range -
 -- this is the single most-hit predicate in the workload.
 CREATE INDEX idx_transaction_date ON "transaction" (transaction_date);
+
+-- Supports natural-language spend filters such as "spent on insurance
+-- premium" through the indexed pg_trgm similarity operator.
+CREATE INDEX idx_transaction_description_trgm
+    ON "transaction" USING gin (lower(description) gin_trgm_ops);
 
 -- transaction_lookup is an exact-match lookup on this column.
 CREATE INDEX idx_transaction_reference_id
