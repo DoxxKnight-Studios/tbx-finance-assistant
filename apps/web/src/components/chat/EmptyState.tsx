@@ -17,11 +17,11 @@ export function EmptyState({
       <GradientOrbs />
 
       <div
-        className="mb-7 flex size-16 items-center justify-center rounded-3xl text-2xl font-bold text-white shadow-brand-glow animate-in fade-in zoom-in-95 duration-500"
+        className="mb-7 flex size-18 items-center justify-center rounded-3xl text-2xl font-bold text-white shadow-brand-glow animate-in fade-in zoom-in-95 duration-500"
         style={{ background: "var(--brand-gradient)" }}
         aria-hidden="true"
       >
-        T
+        TBX+
       </div>
 
       <h1 className="max-w-lg text-balance text-center text-4xl font-semibold tracking-tight text-foreground sm:text-5xl">
