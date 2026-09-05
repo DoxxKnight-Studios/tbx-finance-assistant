@@ -1,5 +1,5 @@
 import { Router, type Request, type Response } from "express";
-import type { FinanceIntent } from "../ai/types.js";
+import type { ConversationContext } from "../ai/conversationContext.js";
 import {
   processFinanceMessage,
   type FinanceIntentParser,
@@ -20,13 +20,13 @@ function isNonEmptyString(value: unknown): value is string {
  * conversationContext is untrusted HTTP input. It only ever flows into
  * the parser's prompt as loose prior-turn context (never into SQL, never
  * interpreted as an intent itself), so this only checks it's a plain
- * object rather than fully validating it as a Partial<FinanceIntent>.
+ * object rather than fully validating it as a ConversationContext.
  */
 function normalizePreviousContext(
   value: unknown,
-): Partial<FinanceIntent> | undefined {
+): ConversationContext | undefined {
   if (value !== null && typeof value === "object" && !Array.isArray(value)) {
-    return value as Partial<FinanceIntent>;
+    return value as ConversationContext;
   }
 
   return undefined;

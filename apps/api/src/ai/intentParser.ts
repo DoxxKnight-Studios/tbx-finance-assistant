@@ -1,7 +1,8 @@
 import { callGemini } from "./gemini.js";
 import { buildIntentUserPrompt } from "./prompts/intent.js";
 import { validateIntentParserResult } from "./validateIntent.js";
-import type { FinanceIntent, IntentParserResult } from "./types.js";
+import type { IntentParserResult } from "./types.js";
+import type { ConversationContext } from "./conversationContext.js";
 
 export type ParserExecutionResult =
   | {
@@ -22,7 +23,7 @@ export type ParserExecutionResult =
  */
 export async function parseFinanceIntent(
   message: string,
-  previousContext?: Partial<FinanceIntent> | null
+  previousContext?: ConversationContext | null
 ): Promise<IntentParserResult> {
   const prompt = buildIntentUserPrompt(message, previousContext);
   const raw = await callGemini(prompt);
@@ -48,7 +49,7 @@ export async function parseFinanceIntent(
  */
 export async function parseFinanceIntentSafe(
   message: string,
-  previousContext?: Partial<FinanceIntent> | null
+  previousContext?: ConversationContext | null
 ): Promise<ParserExecutionResult> {
   const prompt = buildIntentUserPrompt(message, previousContext);
   let raw: string;

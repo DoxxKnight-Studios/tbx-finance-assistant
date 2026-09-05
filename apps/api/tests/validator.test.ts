@@ -104,24 +104,28 @@ describe("Runtime Intent Validator (TBX Finance Assistant)", () => {
     });
   });
 
-  describe("FinanceIntent Validation", () => {
-    it("accepts all 10 supported intents with valid structures", () => {
+  describe("FinanceIntent Validation - official TBX contract", () => {
+    it("accepts one valid example of all 10 supported intents", () => {
       const sampleIntents: Record<string, unknown> = {
-        vendor_payout_total: { intent: "vendor_payout_total" },
-        vendor_payout_by_vendor: { intent: "vendor_payout_by_vendor" },
-        vendor_payout_largest: { intent: "vendor_payout_largest" },
         transaction_spend_total: { intent: "transaction_spend_total" },
-        transaction_spend_by_vendor: { intent: "transaction_spend_by_vendor" },
-        transaction_spend_by_category: { intent: "transaction_spend_by_category" },
-        unreconciled_transactions: { intent: "unreconciled_transactions" },
-        reconciliation_summary: { intent: "reconciliation_summary" },
+        transaction_income_total: { intent: "transaction_income_total" },
+        transaction_count: { intent: "transaction_count", transaction_type: "debit" },
+        transaction_spend_by_bank: { intent: "transaction_spend_by_bank" },
+        transaction_spend_by_program: { intent: "transaction_spend_by_program", program_id: 21 },
+        transaction_summary: { intent: "transaction_summary" },
+        largest_transaction: { intent: "largest_transaction" },
         transaction_lookup: {
           intent: "transaction_lookup",
-          transaction_reference: "TXN-12345",
+          transaction_reference: "TXN-DEMO-000007",
+        },
+        account_balance: {
+          intent: "account_balance",
+          account: { last4: "9069" },
         },
         financial_comparison: {
           intent: "financial_comparison",
           comparison: {
+            metric: "spend",
             primary: { type: "month", year: 2026, month: 8 },
             secondary: { type: "month", year: 2026, month: 7 },
           },
@@ -135,7 +139,7 @@ describe("Runtime Intent Validator (TBX Finance Assistant)", () => {
 
     it("rejects unsupported intent names", () => {
       assert.equal(
-        isValidFinanceIntent({ intent: "unsupported_crypto_forecast" }),
+        isValidFinanceIntent({ intent: "vendor_payout_total" }),
         false
       );
     });
@@ -146,6 +150,52 @@ describe("Runtime Intent Validator (TBX Finance Assistant)", () => {
         false
       );
     });
+
+    it("rejects account_balance without account.last4", () => {
+      assert.equal(
+        isValidFinanceIntent({ intent: "account_balance" }),
+        false
+      );
+    });
+
+    it("rejects an invalid program_id", () => {
+      assert.equal(
+        isValidFinanceIntent({ intent: "transaction_spend_by_program", program_id: 7 }),
+        false
+      );
+    });
+
+    it("rejects an invalid transaction_type", () => {
+      assert.equal(
+        isValidFinanceIntent({ intent: "transaction_count", transaction_type: "refund" }),
+        false
+      );
+    });
+
+    it("rejects financial_comparison missing a period", () => {
+      assert.equal(
+        isValidFinanceIntent({
+          intent: "financial_comparison",
+          comparison: { metric: "spend", primary: { type: "this_month" } },
+        }),
+        false
+      );
+    });
+
+    it("rejects forbidden vendor/category/reconciliation fields", () => {
+      assert.equal(
+        isValidFinanceIntent({ intent: "transaction_spend_total", vendor: { name: "Acme" } }),
+        false
+      );
+      assert.equal(
+        isValidFinanceIntent({ intent: "transaction_count", category: "utilities" }),
+        false
+      );
+      assert.equal(
+        isValidFinanceIntent({ intent: "transaction_count", reconciliationStatus: "UNRECONCILED" }),
+        false
+      );
+    });
   });
 
   describe("Parser Result Contract Validation", () => {
@@ -153,7 +203,7 @@ describe("Runtime Intent Validator (TBX Finance Assistant)", () => {
       const output = {
         status: "success",
         intent: {
-          intent: "vendor_payout_total",
+          intent: "transaction_spend_total",
           date_range: { type: "last_month" },
         },
       };
@@ -165,7 +215,7 @@ describe("Runtime Intent Validator (TBX Finance Assistant)", () => {
     it("validates clarification output", () => {
       const output = {
         status: "clarification",
-        question: "How much did Acme spend or receive?",
+        question: "Which account would you like me to check?",
       };
 
       const result = validateIntentParserResult(output);
@@ -175,11 +225,16 @@ describe("Runtime Intent Validator (TBX Finance Assistant)", () => {
     it("validates unsupported output", () => {
       const output = {
         status: "unsupported",
-        message: "Revenue forecasting is not supported.",
+        message: "Vendor and payee analysis is not supported.",
       };
 
       const result = validateIntentParserResult(output);
       assert.equal(result.valid, true);
+    });
+
+    it("rejects the old incompatible shape", () => {
+      const result = validateIntentParserResult({ intent: null, reason: "unsupported" });
+      assert.equal(result.valid, false);
     });
   });
 });

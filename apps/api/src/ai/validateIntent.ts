@@ -1,98 +1,18 @@
-import type { FinanceIntent } from "./types.js";
-
-export type IntentValidationResult =
-  | {
-      valid: true;
-      intent: FinanceIntent;
-    }
-  | {
-      valid: false;
-      reason: string;
-      clarification?: string;
-    };
-
-const requiredDateIntents = new Set([
-  "vendor_payout_total",
-  "vendor_payout_by_vendor",
-  "vendor_payout_largest",
-  "transaction_spend_total",
-  "transaction_spend_by_vendor",
-  "transaction_spend_by_category",
-]);
-
-export function validateIntent(
-  intent: FinanceIntent,
-): IntentValidationResult {
-  if (!intent || typeof intent !== "object") {
-    return {
-      valid: false,
-      reason: "INVALID_INTENT",
-    };
-  }
-
-  if (!intent.intent) {
-    return {
-      valid: false,
-      reason: "MISSING_INTENT",
-    };
-  }
-
-  if (
-    requiredDateIntents.has(intent.intent) &&
-    !intent.date_range
-  ) {
-    return {
-      valid: false,
-      reason: "MISSING_DATE_RANGE",
-      clarification: "What date range should I use?",
-    };
-  }
-
-  if (
-    intent.intent === "transaction_lookup" &&
-    !intent.transaction_reference
-  ) {
-    return {
-      valid: false,
-      reason: "MISSING_TRANSACTION_REFERENCE",
-      clarification: "Which transaction reference should I look up?",
-    };
-  }
-
-  if (
-    intent.intent === "financial_comparison" &&
-    !intent.comparison
-  ) {
-    return {
-      valid: false,
-      reason: "MISSING_COMPARISON_PERIODS",
-      clarification: "Which two periods should I compare?",
-    };
-  }
-
-  if (
-    intent.limit !== undefined &&
-    (!Number.isInteger(intent.limit) ||
-      intent.limit < 1 ||
-      intent.limit > 100)
-  ) {
-    return {
-      valid: false,
-      reason: "INVALID_LIMIT",
-    };
-  }
-
-  return {
-    valid: true,
-    intent,
-  };
-}import {
-  SUPPORTED_INTENTS,
+import {
+  COMPARISON_METRICS,
+  KNOWN_PROGRAM_IDS,
   RELATIVE_DATE_TYPES,
-  type IntentParserResult,
+  SUPPORTED_INTENTS,
+  TRANSACTION_TYPES,
+  type AccountFilter,
+  type BankFilter,
   type DateRange,
+  type FinanceIntent,
   type IntentName,
+  type IntentParserResult,
+  type ProgramId,
   type RelativeDateType,
+  type TransactionType,
 } from "./types.js";
 
 export type ValidationOutcome =
@@ -125,16 +45,19 @@ export function isValidDateRange(range: unknown): range is DateRange {
   if (typeof r.type !== "string") return false;
 
   if (RELATIVE_DATE_TYPES.includes(r.type as RelativeDateType)) {
+    if (!hasOnlyAllowedKeys(r, ["type"])) return false;
     return true;
   }
 
   if (r.type === "month") {
+    if (!hasOnlyAllowedKeys(r, ["type", "year", "month"])) return false;
     if (typeof r.year !== "number" || typeof r.month !== "number") return false;
     if (r.month < 1 || r.month > 12) return false;
     return true;
   }
 
   if (r.type === "between") {
+    if (!hasOnlyAllowedKeys(r, ["type", "start", "end"])) return false;
     if (typeof r.start !== "string" || typeof r.end !== "string") return false;
     if (!isValidCalendarDate(r.start) || !isValidCalendarDate(r.end)) return false;
     return r.start < r.end;
@@ -143,72 +66,154 @@ export function isValidDateRange(range: unknown): range is DateRange {
   return false;
 }
 
-export function isValidFinanceIntent(intent: unknown): intent is FinanceIntent {
-  if (!intent || typeof intent !== "object") return false;
-  const fi = intent as Record<string, unknown>;
+function hasOnlyAllowedKeys(obj: Record<string, unknown>, allowedKeys: readonly string[]): boolean {
+  return Object.keys(obj).every((key) => (allowedKeys as readonly string[]).includes(key));
+}
 
-  if (!SUPPORTED_INTENTS.includes(fi.intent as IntentName)) {
+function isOptionalDateRange(value: unknown): boolean {
+  return value === undefined || isValidDateRange(value);
+}
+
+function isBankFilter(value: unknown): value is BankFilter {
+  if (typeof value !== "object" || value === null) return false;
+  const v = value as Record<string, unknown>;
+  return hasOnlyAllowedKeys(v, ["code"]) && typeof v.code === "string" && v.code.trim().length > 0;
+}
+
+function isOptionalBankFilter(value: unknown): boolean {
+  return value === undefined || isBankFilter(value);
+}
+
+const LAST4_PATTERN = /^\d{4}$/;
+
+function isAccountFilter(value: unknown): value is AccountFilter {
+  if (typeof value !== "object" || value === null) return false;
+  const v = value as Record<string, unknown>;
+  return (
+    hasOnlyAllowedKeys(v, ["last4"]) &&
+    typeof v.last4 === "string" &&
+    LAST4_PATTERN.test(v.last4)
+  );
+}
+
+function isOptionalAccountFilter(value: unknown): boolean {
+  return value === undefined || isAccountFilter(value);
+}
+
+function isProgramId(value: unknown): value is ProgramId {
+  return typeof value === "number" && (KNOWN_PROGRAM_IDS as readonly number[]).includes(value);
+}
+
+function isOptionalProgramId(value: unknown): boolean {
+  return value === undefined || isProgramId(value);
+}
+
+function isTransactionType(value: unknown): value is TransactionType {
+  return typeof value === "string" && (TRANSACTION_TYPES as readonly string[]).includes(value);
+}
+
+function isOptionalTransactionType(value: unknown): boolean {
+  return value === undefined || isTransactionType(value);
+}
+
+function isValidComparison(value: unknown): boolean {
+  if (typeof value !== "object" || value === null) return false;
+  const c = value as Record<string, unknown>;
+  if (!hasOnlyAllowedKeys(c, ["metric", "primary", "secondary"])) return false;
+  if (typeof c.metric !== "string" || !(COMPARISON_METRICS as readonly string[]).includes(c.metric)) {
     return false;
   }
+  return isValidDateRange(c.primary) && isValidDateRange(c.secondary);
+}
 
-  if (fi.vendor !== undefined) {
-    if (typeof fi.vendor !== "object" || fi.vendor === null) return false;
-    const v = fi.vendor as Record<string, unknown>;
-    if (v.name !== undefined && typeof v.name !== "string") return false;
-    if (v.code !== undefined && typeof v.code !== "string") return false;
-  }
+/**
+ * Structural/semantic validation of a raw (untyped) candidate intent
+ * from Gemini's JSON output. This is the sole gate that decides whether
+ * a value is trustworthy as a FinanceIntent - it rejects unknown
+ * intents, malformed dates, invalid transaction_type/program_id/last4,
+ * missing intent-specific required fields, AND any field that isn't
+ * explicitly allowed for that intent (so a stray `vendor`, `category`,
+ * or `reconciliationStatus` field fails validation here rather than
+ * silently passing through). Never touches the database - program_id
+ * membership is checked against the known, fixed 5-program business
+ * domain, not a query.
+ */
+export function isValidFinanceIntent(value: unknown): value is FinanceIntent {
+  if (!value || typeof value !== "object") return false;
+  const fi = value as Record<string, unknown>;
 
-  if (fi.category !== undefined && typeof fi.category !== "string") {
-    return false;
-  }
+  if (!SUPPORTED_INTENTS.includes(fi.intent as IntentName)) return false;
 
-  if (
-    fi.transaction_reference !== undefined &&
-    typeof fi.transaction_reference !== "string"
-  ) {
-    return false;
-  }
+  switch (fi.intent as IntentName) {
+    case "transaction_spend_total":
+    case "transaction_income_total":
+    case "transaction_summary":
+      return (
+        hasOnlyAllowedKeys(fi, ["intent", "date_range", "bank", "program_id", "account"]) &&
+        isOptionalDateRange(fi.date_range) &&
+        isOptionalBankFilter(fi.bank) &&
+        isOptionalProgramId(fi.program_id) &&
+        isOptionalAccountFilter(fi.account)
+      );
 
-  if (fi.date_range !== undefined && !isValidDateRange(fi.date_range)) {
-    return false;
-  }
+    case "transaction_count":
+      return (
+        hasOnlyAllowedKeys(fi, [
+          "intent", "date_range", "transaction_type", "bank", "program_id", "account",
+        ]) &&
+        isOptionalDateRange(fi.date_range) &&
+        isOptionalTransactionType(fi.transaction_type) &&
+        isOptionalBankFilter(fi.bank) &&
+        isOptionalProgramId(fi.program_id) &&
+        isOptionalAccountFilter(fi.account)
+      );
 
-  if (fi.intent === "transaction_lookup") {
-    if (
-      typeof fi.transaction_reference !== "string" ||
-      fi.transaction_reference.trim().length === 0
-    ) {
+    case "transaction_spend_by_bank":
+      return (
+        hasOnlyAllowedKeys(fi, ["intent", "date_range", "bank"]) &&
+        isOptionalDateRange(fi.date_range) &&
+        isOptionalBankFilter(fi.bank)
+      );
+
+    case "transaction_spend_by_program":
+      return (
+        hasOnlyAllowedKeys(fi, ["intent", "date_range", "program_id"]) &&
+        isOptionalDateRange(fi.date_range) &&
+        isOptionalProgramId(fi.program_id)
+      );
+
+    case "largest_transaction":
+      return (
+        hasOnlyAllowedKeys(fi, [
+          "intent", "date_range", "transaction_type", "bank", "program_id", "account",
+        ]) &&
+        isOptionalDateRange(fi.date_range) &&
+        isOptionalTransactionType(fi.transaction_type) &&
+        isOptionalBankFilter(fi.bank) &&
+        isOptionalProgramId(fi.program_id) &&
+        isOptionalAccountFilter(fi.account)
+      );
+
+    case "transaction_lookup":
+      return (
+        hasOnlyAllowedKeys(fi, ["intent", "transaction_reference"]) &&
+        typeof fi.transaction_reference === "string" &&
+        fi.transaction_reference.trim().length > 0
+      );
+
+    case "account_balance":
+      return (
+        hasOnlyAllowedKeys(fi, ["intent", "account", "bank"]) &&
+        isAccountFilter(fi.account) &&
+        isOptionalBankFilter(fi.bank)
+      );
+
+    case "financial_comparison":
+      return hasOnlyAllowedKeys(fi, ["intent", "comparison"]) && isValidComparison(fi.comparison);
+
+    default:
       return false;
-    }
   }
-
-  if (fi.intent === "financial_comparison") {
-    if (!fi.comparison || typeof fi.comparison !== "object") {
-      return false;
-    }
-  }
-
-  if (fi.comparison !== undefined) {
-    if (typeof fi.comparison !== "object" || fi.comparison === null)
-      return false;
-    const c = fi.comparison as Record<string, unknown>;
-    if (!isValidDateRange(c.primary) || !isValidDateRange(c.secondary)) {
-      return false;
-    }
-  }
-
-  if (fi.limit !== undefined) {
-    if (
-      typeof fi.limit !== "number" ||
-      !Number.isInteger(fi.limit) ||
-      fi.limit < 1 ||
-      fi.limit > 1000
-    ) {
-      return false;
-    }
-  }
-
-  return true;
 }
 
 export function validateIntentParserResult(input: unknown): ValidationOutcome {
@@ -229,7 +234,7 @@ export function validateIntentParserResult(input: unknown): ValidationOutcome {
       valid: true,
       data: {
         status: "success",
-        intent: res.intent as FinanceIntent,
+        intent: res.intent,
       },
     };
   }
@@ -271,4 +276,40 @@ export function validateIntentParserResult(input: unknown): ValidationOutcome {
     valid: false,
     error: `Unknown or missing status: ${String(res.status)}`,
   };
+}
+
+export type IntentValidationResult =
+  | { valid: true; intent: FinanceIntent }
+  | { valid: false; reason: string; clarification?: string };
+
+/**
+ * The real runtime validation boundary called by ai/messagePipeline.ts.
+ * `intent: FinanceIntent` is a TypeScript annotation, not proof - that
+ * type is erased at runtime, so a value arriving here (from Gemini's raw
+ * JSON, or from a test that force-casts a malformed object with
+ * `as unknown as FinanceIntent`) cannot be trusted just because the
+ * caller's type checker allowed it through. This independently re-runs
+ * the full structural check (isValidFinanceIntent: recognized intent,
+ * allowed keys only, well-formed dates/bank/program/account/comparison)
+ * against the actual value, so malformed data is rejected here even if
+ * every earlier layer's type-level guarantee was bypassed.
+ *
+ * Its signature is preserved exactly because messagePipeline.ts calls it
+ * directly and is not being touched in this phase. Unlike the
+ * pre-Phase-4 contract - where date_range was structurally optional but
+ * a business rule still required it for spend/vendor intents - every
+ * field this contract marks optional is genuinely optional ("all time"
+ * is a meaningful answer for e.g. transaction_spend_total), so there is
+ * no additional business-only requirement left to enforce beyond
+ * structural validity.
+ */
+export function validateIntent(intent: FinanceIntent): IntentValidationResult {
+  if (!isValidFinanceIntent(intent)) {
+    return {
+      valid: false,
+      reason: "MALFORMED_FINANCE_INTENT",
+    };
+  }
+
+  return { valid: true, intent };
 }

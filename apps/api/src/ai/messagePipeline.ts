@@ -1,4 +1,5 @@
 import type { FinanceIntent } from "./types.js";
+import type { ConversationContext } from "./conversationContext.js";
 import { validateIntent } from "./validateIntent.js";
 import {
   executeFinanceIntent,
@@ -23,7 +24,7 @@ export type IntentParserResult =
   | {
       status: "clarification";
       question: string;
-      partialIntent?: Partial<FinanceIntent>;
+      partialIntent?: ConversationContext;
     }
   | {
       status: "unsupported";
@@ -32,7 +33,7 @@ export type IntentParserResult =
 
 export type FinanceIntentParser = (
   message: string,
-  previousContext?: Partial<FinanceIntent> | null,
+  previousContext?: ConversationContext | null,
 ) => Promise<IntentParserResult>;
 
 export type ProcessFinanceMessageResult =
@@ -47,7 +48,7 @@ export type ProcessFinanceMessageResult =
     };
 
 export interface ProcessFinanceMessageOptions {
-  previousContext?: Partial<FinanceIntent> | null;
+  previousContext?: ConversationContext | null;
   referenceDate?: Date;
 }
 
