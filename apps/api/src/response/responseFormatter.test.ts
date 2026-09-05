@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { formatFinanceResponse, formatPeriodLabel, formatINR } from "./responseFormatter.js";
+import { formatFinanceResponse, formatPeriodLabel, formatINR, renderSqlWithBoundParams } from "./responseFormatter.js";
 import type { QueryPipelineSuccess } from "../query/queryPipeline.js";
 import type { ProcessFinanceMessageResult } from "../ai/messagePipeline.js";
 import type { FinanceIntent } from "../ai/types.js";
 import type { QueryPlan } from "../query/queryTypes.js";
+import { getQueryTemplate } from "../query/queryTemplateRegistry.js";
 
 const AUGUST_2026 = { startDate: "2026-08-01", endDateExclusive: "2026-09-01" };
 const JULY_2026 = { startDate: "2026-07-01", endDateExclusive: "2026-08-01" };
@@ -12,8 +13,9 @@ function success(
   intent: FinanceIntent,
   plan: QueryPlan,
   rows: Record<string, unknown>[],
+  builtQuery: { text: string; params: unknown[] } = { text: "SELECT 1", params: [] },
 ): QueryPipelineSuccess {
-  return { status: "success", intent, plan, template: plan.intent, rows };
+  return { status: "success", intent, plan, template: plan.intent, builtQuery, rows };
 }
 
 describe("formatINR / formatPeriodLabel (presentation helpers)", () => {
@@ -116,7 +118,11 @@ describe("transaction_spend_total", () => {
     const formatted = formatFinanceResponse(result);
     const evidence = formatted.evidence as { account?: { last4: string } };
     expect(evidence.account?.last4).toBe("7622");
-    expect(JSON.stringify(formatted)).not.toContain("0504cd0b-0604-ce9e-0704-d0310804d1c4");
+    // The resolved accountId UUID is fine to appear in the technical
+    // trace's queryPlan (that's the real plan, shown for explainability),
+    // but must never appear in the public answer/summary/evidence.
+    const publicOnly = { answer: formatted.answer, summary: formatted.summary, evidence: formatted.evidence };
+    expect(JSON.stringify(publicOnly)).not.toContain("0504cd0b-0604-ce9e-0704-d0310804d1c4");
   });
 });
 
@@ -345,7 +351,7 @@ describe("largest_transaction", () => {
     expect(formatted.summary).toBeUndefined();
   });
 
-  it("evidence carries safe transaction fields only - no transaction_id, account_number, utr_number, or entity_id", () => {
+  it("evidence carries safe transaction fields only - no account_number or utr_number anywhere, and no transaction_id in the public evidence", () => {
     const result = success(
       { intent: "largest_transaction" },
       { intent: "largest_transaction", filters: {}, sort: { direction: "desc" }, limit: 1 },
@@ -354,11 +360,18 @@ describe("largest_transaction", () => {
     const formatted = formatFinanceResponse(result);
     const serialized = JSON.stringify(formatted);
 
-    expect(serialized).not.toContain("0da0fcff-0ea0-fe92-0fa1-002508a0f520"); // transaction_id (internal UUID)
+    // account_number/utr_number/entity_id must never appear anywhere,
+    // including the technical trace's raw database result.
     expect(serialized).not.toContain("40000000000012349069"); // account_number
     expect(serialized).not.toContain("HDFC0000000000000001"); // utr_number
     expect(serialized).not.toContain("entity_id");
     expect(serialized).not.toContain('"e1"');
+
+    // transaction_id (an internal UUID) is not sensitive the same way,
+    // and the technical trace deliberately may show it for debugging -
+    // but it must never appear in the *public* answer/summary/evidence.
+    const publicOnly = { answer: formatted.answer, summary: formatted.summary, evidence: formatted.evidence };
+    expect(JSON.stringify(publicOnly)).not.toContain("0da0fcff-0ea0-fe92-0fa1-002508a0f520");
 
     const evidence = formatted.evidence as { transaction: Record<string, unknown> };
     expect(evidence.transaction.reference).toBe("HDFC20260814035000");
@@ -452,17 +465,35 @@ describe("account_balance", () => {
     expect(JSON.stringify(formatted).toLowerCase()).not.toContain("date");
   });
 
-  it("never exposes the raw account_number, entity_id, or internal account_id", () => {
+  it("never exposes the raw account_number or entity_id, anywhere - including the technical trace", () => {
+    const plan: QueryPlan = { intent: "account_balance", accountId: "0504cd0b-0604-ce9e-0704-d0310804d1c4" };
+    const result = success(
+      { intent: "account_balance", account: { last4: "7622" } },
+      plan,
+      [{ account_id: "0504cd0b-0604-ce9e-0704-d0310804d1c4", account_number: "40000000000012347622", entity_id: "e1", available_balance: "100.00", program_id: 58, last4: "7622", bank_code: "CNRB", bank_name: "CANARA BANK" }],
+      getQueryTemplate(plan.intent).build(plan as never),
+    );
+    const serialized = JSON.stringify(formatFinanceResponse(result));
+    // The account_number VALUE and the entity_id key/value must never
+    // appear anywhere, in either the public evidence or the technical
+    // trace's raw database result. (The real account_balance SQL text
+    // does legitimately name the account_number COLUMN via
+    // RIGHT(a.account_number, 4) - that is not this value, see the
+    // dedicated test above.)
+    expect(serialized).not.toContain("40000000000012347622");
+    expect(serialized).not.toContain("entity_id");
+    expect(serialized).not.toContain('"e1"');
+  });
+
+  it("the public evidence/summary/answer never carry the internal account_id UUID (only the technical trace may)", () => {
     const result = success(
       { intent: "account_balance", account: { last4: "7622" } },
       { intent: "account_balance", accountId: "0504cd0b-0604-ce9e-0704-d0310804d1c4" },
       [{ account_id: "0504cd0b-0604-ce9e-0704-d0310804d1c4", account_number: "40000000000012347622", entity_id: "e1", available_balance: "100.00", program_id: 58, last4: "7622", bank_code: "CNRB", bank_name: "CANARA BANK" }],
     );
-    const serialized = JSON.stringify(formatFinanceResponse(result));
-    expect(serialized).not.toContain("40000000000012347622");
-    expect(serialized).not.toContain("0504cd0b-0604-ce9e-0704-d0310804d1c4");
-    expect(serialized).not.toContain("entity_id");
-    expect(serialized).not.toContain('"e1"');
+    const formatted = formatFinanceResponse(result);
+    const publicOnly = { answer: formatted.answer, summary: formatted.summary, evidence: formatted.evidence };
+    expect(JSON.stringify(publicOnly)).not.toContain("0504cd0b-0604-ce9e-0704-d0310804d1c4");
   });
 
   it("returns not_found for zero rows rather than fabricating a balance", () => {
@@ -611,15 +642,191 @@ describe("security hardening - the formatter is a last line of defense", () => {
     ];
 
     for (const plan of plans) {
-      const result = success({ intent: plan.intent } as FinanceIntent, plan, [sensitiveRow]);
+      // Build the REAL registered SQL for this plan (not a dummy
+      // "SELECT 1") so this test actually exercises what a live request
+      // produces - a unit test using placeholder SQL text would miss a
+      // template that legitimately references a sensitive column name
+      // (account_balance does, to compute last4 - see below).
+      const builtQuery = getQueryTemplate(plan.intent).build(plan as never);
+      const result = success({ intent: plan.intent } as FinanceIntent, plan, [sensitiveRow], builtQuery);
       const serialized = JSON.stringify(formatFinanceResponse(result));
 
       expect(serialized).not.toContain("99999999999999");
       expect(serialized).not.toContain("SECRETUTR12345");
       expect(serialized).not.toContain("SECRETENTITY");
-      expect(serialized.toLowerCase()).not.toContain("account_number");
+      // account_balance's real SQL legitimately contains the identifier
+      // "RIGHT(a.account_number, 4)" - that is how last4 is derived
+      // without ever selecting the full column, and showing that SQL is
+      // the whole point of the technical trace. Every OTHER template
+      // must never reference it at all.
+      if (plan.intent === "account_balance") {
+        expect(serialized).toContain("account_number");
+      } else {
+        expect(serialized.toLowerCase()).not.toContain("account_number");
+      }
       expect(serialized.toLowerCase()).not.toContain("utr_number");
       expect(serialized.toLowerCase()).not.toContain("entity_id");
+    }
+  });
+
+  it("account_balance's real SQL references the account_number column (to derive last4) but the raw value never appears anywhere", () => {
+    const plan: QueryPlan = { intent: "account_balance", accountId: "0504cd0b-0604-ce9e-0704-d0310804d1c4" };
+    const builtQuery = getQueryTemplate(plan.intent).build(plan as never);
+    const result = success(
+      { intent: "account_balance", account: { last4: "7622" } },
+      plan,
+      [{ account_id: "0504cd0b-0604-ce9e-0704-d0310804d1c4", account_number: "40000000000012347622", entity_id: "e1", available_balance: "100.00", program_id: 58, last4: "7622", bank_code: "CNRB", bank_name: "CANARA BANK" }],
+      builtQuery,
+    );
+    const serialized = JSON.stringify(formatFinanceResponse(result));
+
+    // The column name legitimately appears (proof last4 is derived via
+    // RIGHT() and the full column is never selected) ...
+    expect(serialized).toContain("RIGHT(a.account_number, 4)");
+    // ... but the actual 20-digit account number VALUE never does, in
+    // any form - public evidence or technical trace alike.
+    expect(serialized).not.toContain("40000000000012347622");
+    expect(serialized).not.toContain("entity_id");
+    expect(serialized).not.toContain('"e1"');
+  });
+});
+
+describe("technical trace (\"how this answer was derived\")", () => {
+  it("is attached to every successful response, sourced from the real execution path - not reconstructed", () => {
+    const intent: FinanceIntent = {
+      intent: "transaction_spend_total",
+      bank: { code: "HDFC" },
+      date_range: { type: "month", year: 2026, month: 8 },
+    };
+    const plan: QueryPlan = {
+      intent: "transaction_spend_total",
+      transactionType: "debit",
+      filters: { dateWindow: AUGUST_2026, bankCode: "HDFC" },
+      aggregation: { function: "sum" },
+    };
+    const builtQuery = {
+      text: 'SELECT COALESCE(SUM(t.transaction_amount), 0) AS total FROM "transaction" t JOIN account a ON a.account_id = t.account_id WHERE t.transaction_type = $1 AND t.transaction_date >= $2 AND t.transaction_date < $3 AND a.bank_code = $4',
+      params: ["debit", "2026-08-01", "2026-09-01", "HDFC"],
+    };
+    const result = success(intent, plan, [{ total: "61708570.02" }], builtQuery);
+
+    const formatted = formatFinanceResponse(result, "How much did we spend through HDFC in August 2026?");
+
+    expect(formatted.technical).toBeDefined();
+    const trace = formatted.technical!;
+
+    expect(trace.userQuestion).toBe("How much did we spend through HDFC in August 2026?");
+    expect(trace.intentName).toBe("transaction_spend_total");
+    expect(trace.intent).toEqual(intent);
+    expect(trace.queryPlan).toEqual(plan);
+    expect(trace.sqlTemplate).toBe(builtQuery.text);
+    expect(trace.sqlParameters).toEqual(builtQuery.params);
+    expect(trace.databaseResult).toEqual([{ total: "61708570.02" }]);
+    expect(trace.transformationSteps.length).toBeGreaterThan(0);
+    for (const step of trace.transformationSteps) {
+      expect(typeof step.step).toBe("string");
+      expect(typeof step.description).toBe("string");
+      expect(step.description.length).toBeGreaterThan(0);
+    }
+  });
+
+  it("defaults userQuestion to an empty string when the caller doesn't supply one (backward compatible)", () => {
+    const result = success(
+      { intent: "transaction_count" },
+      { intent: "transaction_count", filters: {}, aggregation: { function: "count" } },
+      [{ count: "5" }],
+    );
+    const trace = formatFinanceResponse(result).technical!;
+    expect(trace.userQuestion).toBe("");
+  });
+
+  it("renders bound SQL with correctly quoted/escaped/typed parameter values, for display only", () => {
+    const result = success(
+      { intent: "transaction_lookup", transaction_reference: "TXN-DEMO-000001" },
+      { intent: "transaction_lookup", transactionReference: "TXN-DEMO-000001", limit: 1 },
+      [{ transaction_amount: "4607.95", transaction_type: "debit", transaction_date: new Date("2025-01-01T15:14:50.127Z"), transaction_reference_id: "TXN-DEMO-000001", description: "NEFT - SALARY DISBURSEMENT", bank_code: "HDFC", bank_name: "HDFC BANK LIMITED", program_id: 4 }],
+      { text: 'SELECT * FROM "transaction" t WHERE t.transaction_reference_id = $1 AND t.transaction_amount > $2 LIMIT $3', params: ["TXN-DEMO-000001", 100, 1] },
+    );
+
+    const trace = formatFinanceResponse(result).technical!;
+
+    expect(trace.renderedSql).toContain("t.transaction_reference_id = 'TXN-DEMO-000001'");
+    expect(trace.renderedSql).toContain("t.transaction_amount > 100"); // number, unquoted
+    expect(trace.renderedSql).toContain("LIMIT 1");
+    expect(trace.renderedSql).not.toContain("$1");
+    expect(trace.renderedSql).not.toContain("$2");
+    expect(trace.renderedSql).not.toContain("$3");
+  });
+
+  it("escapes single quotes in string parameters when rendering bound SQL", () => {
+    const rendered = renderSqlWithBoundParams({ text: "SELECT * FROM bank WHERE bank_name = $1", params: ["O'Brien Bank"] });
+    expect(rendered).toBe("SELECT * FROM bank WHERE bank_name = 'O''Brien Bank'");
+  });
+
+  it("renders NULL for null/undefined parameters and ISO-quotes Date parameters", () => {
+    const rendered = renderSqlWithBoundParams({
+      text: "SELECT * FROM t WHERE a = $1 AND b >= $2",
+      params: [null, new Date("2026-08-01T00:00:00.000Z")],
+    });
+    expect(rendered).toBe("SELECT * FROM t WHERE a = NULL AND b >= '2026-08-01T00:00:00.000Z'");
+  });
+
+  it("strips account_number/utr_number/entity_id from databaseResult but keeps other fields (e.g. transaction_id) for debugging", () => {
+    const result = success(
+      { intent: "account_balance", account: { last4: "7622" } },
+      { intent: "account_balance", accountId: "acct-uuid-1" },
+      [{
+        account_id: "acct-uuid-1",
+        account_number: "40000000000012347622",
+        entity_id: "entity-uuid-1",
+        available_balance: "23185815.48",
+        program_id: 58,
+        last4: "7622",
+        bank_code: "CNRB",
+        bank_name: "CANARA BANK",
+      }],
+    );
+
+    const trace = formatFinanceResponse(result).technical!;
+    const row = trace.databaseResult[0];
+
+    expect(row).not.toHaveProperty("account_number");
+    expect(row).not.toHaveProperty("entity_id");
+    // account_id is an internal identifier, not a real-world sensitive
+    // value like account_number/utr_number - the technical trace may
+    // keep it for debugging.
+    expect(row.account_id).toBe("acct-uuid-1");
+    expect(row.available_balance).toBe("23185815.48");
+  });
+
+  it("is not attached to non-success statuses (clarification, not_found, unsupported, errors)", () => {
+    expect(formatFinanceResponse({ status: "clarification", question: "Which account?" }).technical).toBeUndefined();
+    expect(formatFinanceResponse({ status: "not_found", message: "not found" }).technical).toBeUndefined();
+    expect(formatFinanceResponse({ status: "unsupported_ai_intent", message: "nope" }).technical).toBeUndefined();
+    expect(formatFinanceResponse({ status: "execution_error", message: "boom" }).technical).toBeUndefined();
+    expect(formatFinanceResponse({ status: "parser_error", message: "boom" }).technical).toBeUndefined();
+  });
+
+  it("every one of the 10 intents produces a technical trace with a non-empty transformationSteps list", () => {
+    const cases: Array<{ intent: FinanceIntent; plan: QueryPlan; rows: Record<string, unknown>[] }> = [
+      { intent: { intent: "transaction_spend_total" }, plan: { intent: "transaction_spend_total", transactionType: "debit", filters: {}, aggregation: { function: "sum" } }, rows: [{ total: "1.00" }] },
+      { intent: { intent: "transaction_income_total" }, plan: { intent: "transaction_income_total", transactionType: "credit", filters: {}, aggregation: { function: "sum" } }, rows: [{ total: "1.00" }] },
+      { intent: { intent: "transaction_count" }, plan: { intent: "transaction_count", filters: {}, aggregation: { function: "count" } }, rows: [{ count: "1" }] },
+      { intent: { intent: "transaction_spend_by_bank" }, plan: { intent: "transaction_spend_by_bank", transactionType: "debit", filters: {}, aggregation: { function: "sum" }, groupBy: "bank", sort: { direction: "desc" }, limit: 10 }, rows: [{ bank_code: "HDFC", bank_name: "HDFC BANK LIMITED", total: "1.00" }] },
+      { intent: { intent: "transaction_spend_by_program" }, plan: { intent: "transaction_spend_by_program", transactionType: "debit", filters: {}, aggregation: { function: "sum" }, groupBy: "program", sort: { direction: "desc" }, limit: 10 }, rows: [{ program_id: 21, total: "1.00" }] },
+      { intent: { intent: "transaction_summary" }, plan: { intent: "transaction_summary", filters: {} }, rows: [{ count: "1", debit_total: "1.00", credit_total: "1.00", net: "0.00" }] },
+      { intent: { intent: "largest_transaction" }, plan: { intent: "largest_transaction", filters: {}, sort: { direction: "desc" }, limit: 1 }, rows: [{ transaction_id: "t1", transaction_date: new Date(), transaction_type: "debit", transaction_amount: "1.00", transaction_reference_id: "R1", description: null, bank_code: "HDFC", bank_name: "HDFC BANK LIMITED", program_id: 4 }] },
+      { intent: { intent: "transaction_lookup", transaction_reference: "R1" }, plan: { intent: "transaction_lookup", transactionReference: "R1", limit: 1 }, rows: [{ transaction_id: "t1", transaction_date: new Date(), transaction_type: "debit", transaction_amount: "1.00", transaction_reference_id: "R1", description: null, bank_code: "HDFC", bank_name: "HDFC BANK LIMITED", program_id: 4 }] },
+      { intent: { intent: "account_balance", account: { last4: "1234" } }, plan: { intent: "account_balance", accountId: "a1" }, rows: [{ account_id: "a1", available_balance: "1.00", program_id: 4, last4: "1234", bank_code: "HDFC", bank_name: "HDFC BANK LIMITED" }] },
+      { intent: { intent: "financial_comparison", comparison: { metric: "spend", primary: { type: "this_month" }, secondary: { type: "last_month" } } }, plan: { intent: "financial_comparison", metric: "spend", primary: AUGUST_2026, secondary: JULY_2026 }, rows: [{ primary_value: "1.00", secondary_value: "1.00" }] },
+    ];
+
+    for (const { intent, plan, rows } of cases) {
+      const result = success(intent, plan, rows);
+      const trace = formatFinanceResponse(result, "test question").technical;
+      expect(trace, `expected a technical trace for ${plan.intent}`).toBeDefined();
+      expect(trace!.transformationSteps.length, `expected steps for ${plan.intent}`).toBeGreaterThan(0);
+      expect(trace!.intentName).toBe(plan.intent);
     }
   });
 });

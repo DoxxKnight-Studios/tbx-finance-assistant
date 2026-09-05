@@ -63,6 +63,7 @@ export async function sendChatMessage(
     answer,
     summary: record.summary as ChatApiResult["summary"],
     evidence: record.evidence as ChatApiResult["evidence"],
+    technical: record.technical as ChatApiResult["technical"],
   };
 }
 
