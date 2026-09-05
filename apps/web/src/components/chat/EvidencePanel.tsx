@@ -8,12 +8,14 @@ import type { FinanceEvidence, FinanceSummary } from "@/types/chat";
 const TEMPLATE_LABELS: Record<string, string> = {
   vendor_payout_total: "Vendor payout total",
   vendor_payout_by_vendor: "Vendor payout ranking",
+  transaction_amount_filter: "Transaction amount filter",
   unreconciled_transactions: "Unreconciled transactions",
 };
 
 const TEMPLATE_SOURCE: Record<string, string> = {
   vendor_payout_total: "Vendor payout data",
   vendor_payout_by_vendor: "Vendor payout data",
+  transaction_amount_filter: "Transaction data",
   unreconciled_transactions: "Transaction reconciliation data",
 };
 
@@ -141,6 +143,36 @@ function UnreconciledTransactionsEvidence({ evidence }: { evidence: FinanceEvide
   );
 }
 
+function TransactionAmountFilterEvidence({
+  evidence,
+  summary,
+}: {
+  evidence: FinanceEvidence;
+  summary?: FinanceSummary;
+}) {
+  const threshold = evidence.amountLessThan;
+  const count = summary?.count;
+  const period = formatPeriod(evidence.period?.start, evidence.period?.endExclusive);
+
+  return (
+    <div className="divide-y divide-border/60">
+      {threshold !== undefined && (
+        <Field
+          label="Amount below"
+          value={
+            typeof threshold === "number"
+              ? formatCurrency(String(threshold))
+              : String(threshold)
+          }
+        />
+      )}
+      {period && <Field label="Period" value={period} />}
+      <Field label="Source" value={TEMPLATE_SOURCE.transaction_amount_filter} />
+      {count !== undefined && <Field label="Matching transactions" value={count} />}
+    </div>
+  );
+}
+
 function GenericEvidence({ evidence }: { evidence: FinanceEvidence }) {
   const period = formatPeriod(evidence.period?.start, evidence.period?.endExclusive);
 
@@ -177,6 +209,11 @@ export function EvidencePanel({
       break;
     case "unreconciled_transactions":
       body = <UnreconciledTransactionsEvidence evidence={evidence} />;
+      break;
+    case "transaction_amount_filter":
+      body = (
+        <TransactionAmountFilterEvidence evidence={evidence} summary={summary} />
+      );
       break;
     default:
       body = <GenericEvidence evidence={evidence} />;

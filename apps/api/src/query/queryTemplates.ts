@@ -254,3 +254,43 @@ export const unreconciledTransactionsTemplate: QueryTemplate = {
     };
   },
 };
+
+export const transactionAmountFilterTemplate: QueryTemplate = {
+  name: "transaction_amount_filter",
+
+  build(plan) {
+    const conditions: string[] = [];
+    const params: unknown[] = [];
+
+    if (plan.filters.amountLessThan === undefined) {
+      throw new Error("transaction_amount_filter requires amountLessThan");
+    }
+
+    addCondition(conditions, params, "t.amount < ?", plan.filters.amountLessThan);
+
+    if (plan.filters.vendorId) {
+      addCondition(conditions, params, "t.vendor_id = ?", plan.filters.vendorId);
+    }
+
+    if (plan.filters.category) {
+      addCondition(conditions, params, "t.category = ?", plan.filters.category);
+    }
+
+    if (plan.filters.startDate) {
+      addCondition(conditions, params, "t.transaction_date >= ?", plan.filters.startDate);
+    }
+
+    if (plan.filters.endDateExclusive) {
+      addCondition(conditions, params, "t.transaction_date < ?", plan.filters.endDateExclusive);
+    }
+
+    return {
+      text: `
+        SELECT COUNT(*) AS count
+        FROM transactions t
+        WHERE ${conditions.length > 0 ? conditions.join("\nAND ") : "TRUE"}
+      `.trim(),
+      params,
+    };
+  },
+};

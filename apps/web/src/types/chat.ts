@@ -52,6 +52,7 @@ export interface UnreconciledRow {
 
 export interface FinanceEvidence {
   template?: string;
+  amountLessThan?: number;
   rows?: unknown[];
   rankings?: VendorRankingRow[];
   period?: PeriodEvidence;
@@ -66,6 +67,7 @@ export interface ChatApiResult {
   answer: string;
   summary?: FinanceSummary;
   evidence?: FinanceEvidence;
+  conversationContext?: Record<string, unknown>;
 }
 
 export type MessageRole = "user" | "assistant";

@@ -4,6 +4,7 @@ import {
   unreconciledTransactionsTemplate,
   vendorPayoutByVendorTemplate,
   vendorPayoutTotalTemplate,
+  transactionAmountFilterTemplate,
 } from "./queryTemplates.js";
 
 /**
@@ -14,6 +15,7 @@ import {
 export type SupportedTemplateIntent =
   | "vendor_payout_total"
   | "vendor_payout_by_vendor"
+  | "transaction_amount_filter"
   | "unreconciled_transactions";
 
 const queryTemplateRegistry: Record<
@@ -22,6 +24,7 @@ const queryTemplateRegistry: Record<
 > = {
   vendor_payout_total: vendorPayoutTotalTemplate,
   vendor_payout_by_vendor: vendorPayoutByVendorTemplate,
+  transaction_amount_filter: transactionAmountFilterTemplate,
   unreconciled_transactions: unreconciledTransactionsTemplate,
 };
 

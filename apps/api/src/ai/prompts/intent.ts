@@ -44,7 +44,7 @@ Never return code fences.
 Never return commentary.
 Never return a final financial answer.
 
-SUPPORTED INTENTS (EXACTLY THESE 10):
+SUPPORTED INTENTS (EXACTLY THESE 11):
 
 1. "vendor_payout_total"
    Total amount paid to vendors, optionally for a specific vendor or period.
@@ -65,17 +65,21 @@ SUPPORTED INTENTS (EXACTLY THESE 10):
 6. "transaction_spend_by_category"
    Transaction spend analyzed or grouped by category.
 
-7. "unreconciled_transactions"
+7. "transaction_amount_filter"
+  Count or list transactions filtered by an amount threshold, such as
+  transactions under 5000 or below 10000.
+
+8. "unreconciled_transactions"
    Transactions that are unreconciled, including listing or counting them.
 
-8. "reconciliation_summary"
+9. "reconciliation_summary"
    Summary of reconciliation statuses such as reconciled, unreconciled,
    partial, or exception.
 
-9. "transaction_lookup"
+10. "transaction_lookup"
    Lookup of a specific transaction by transaction reference.
 
-10. "financial_comparison"
+11. "financial_comparison"
     Comparison between two financial periods, such as August vs July or
     this month vs last month.
 
@@ -87,6 +91,7 @@ The success intent may contain only these fields:
 - vendor.name
 - vendor.code
 - category
+- amount_less_than
 - transaction_reference
 - date_range
 - comparison
@@ -101,6 +106,24 @@ Do NOT add:
 - database column names
 - computed financial values
 - arbitrary fields
+
+AMOUNT THRESHOLD RULES:
+
+For requests asking how many or which transactions are below a given amount,
+use "transaction_amount_filter" and represent the threshold as a number in
+"amount_less_than". For example, "How many transactions were under 5000?"
+becomes:
+
+{
+  "status": "success",
+  "intent": {
+    "intent": "transaction_amount_filter",
+    "amount_less_than": 5000
+  }
+}
+
+Do not include currency symbols or commas in the numeric value. Preserve any
+explicit date, vendor, or category filters.
 
 DATE RANGE RULES:
 

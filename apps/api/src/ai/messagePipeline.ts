@@ -98,6 +98,7 @@ export async function processFinanceMessage(
     return {
       status: "clarification",
       question: parsed.question,
+      conversationContext: parsed.partialIntent,
     };
   }
 

@@ -20,6 +20,7 @@ export type QueryPlanningResult =
 type PlannerSupportedIntent =
   | "vendor_payout_total"
   | "vendor_payout_by_vendor"
+  | "transaction_amount_filter"
   | "unreconciled_transactions";
 
 function isSupportedIntent(
@@ -28,6 +29,7 @@ function isSupportedIntent(
   return (
     intent === "vendor_payout_total" ||
     intent === "vendor_payout_by_vendor" ||
+    intent === "transaction_amount_filter" ||
     intent === "unreconciled_transactions"
   );
 }
@@ -175,6 +177,23 @@ export async function buildQueryPlan(
           },
 
           limit: Math.min(intent.limit ?? 20, 100),
+        },
+      };
+
+    case "transaction_amount_filter":
+      return {
+        status: "success",
+        plan: {
+          intent: "transaction_amount_filter",
+          filters: {
+            vendorId,
+            category: intent.category,
+            amountLessThan: intent.amount_less_than,
+            ...dateFilters,
+          },
+          aggregation: {
+            function: "count",
+          },
         },
       };
 
