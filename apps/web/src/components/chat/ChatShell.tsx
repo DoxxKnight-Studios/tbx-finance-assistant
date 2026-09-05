@@ -29,10 +29,9 @@ export function ChatShell({
     const { theme } = useTheme();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [draft, setDraft] = useState("");
-  const [conversationContext, setConversationContext] = useState<Record<string, unknown>>();
+  // const [conversationContext, setConversationContext] = useState<Record<string, unknown>>();
   const [retryingId, setRetryingId] = useState<string | null>(null);
-  const [conversationContext, setConversationContext] = useState<
-    Record<string, unknown> | undefined
+  const [conversationContext, setConversationContext] = useState<Record<string, unknown> | undefined
   >();
   const scrollAnchorRef = useRef<HTMLDivElement>(null);
 

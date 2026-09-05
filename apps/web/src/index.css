@@ -132,10 +132,12 @@
       var(--brand-pink) 38%,
       var(--brand-magenta) 65%,
       var(--brand-purple) 100%);
+
   --brand-gradient-soft: linear-gradient(115deg,
       color-mix(in oklch, var(--brand-orange), transparent 78%) 0%,
       color-mix(in oklch, var(--brand-pink), transparent 78%) 45%,
       color-mix(in oklch, var(--brand-purple), transparent 82%) 100%);
+
   --brand-glow: color-mix(in oklch, var(--brand-magenta), transparent 78%);
   --brand-ring: color-mix(in oklch, var(--brand-magenta), transparent 55%);
 }
@@ -166,6 +168,20 @@
 }
 
 @layer utilities {
+  .header {
+    background-color: #ffffff;
+    border-bottom: 1px solid #e2e8f0;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+
+  .dark .header {
+    background-color: #000000;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+
   .text-brand-gradient {
     background: var(--brand-gradient);
     background-clip: text;
