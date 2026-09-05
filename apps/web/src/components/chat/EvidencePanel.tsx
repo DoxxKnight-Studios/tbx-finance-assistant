@@ -1,45 +1,37 @@
-import { Landmark } from "lucide-react";
-import type { ReactNode } from "react";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
+import {
+  ArrowDownRight,
+  ArrowUpRight,
+  Building2,
+  Calendar,
+  CreditCard,
+  Hash,
+  Layers,
+  ShieldCheck,
+} from "lucide-react";
 import { formatCurrency, formatPeriod } from "@/lib/format";
+import { Badge } from "@/components/ui/badge";
+import { RankingVisualCard } from "./RankingVisualCard";
+import { SummaryVisualCard } from "./SummaryVisualCard";
+import { ComparisonVisualCard } from "./ComparisonVisualCard";
+import { TransactionReceiptCard } from "./TransactionReceiptCard";
+import { AccountBalanceCard } from "./AccountBalanceCard";
 import type { FinanceEvidence, FinanceSummary } from "@/types/chat";
 
+
 const TEMPLATE_LABELS: Record<string, string> = {
-  transaction_spend_total: "Spend total",
-  transaction_income_total: "Income total",
-  transaction_count: "Transaction count",
-  transaction_spend_by_bank: "Spend by bank",
-  transaction_spend_by_program: "Spend by program",
-  transaction_summary: "Activity summary",
-  largest_transaction: "Largest transaction",
-  transaction_lookup: "Transaction lookup",
-  account_balance: "Account balance",
-  financial_comparison: "Period comparison",
+  transaction_spend_total: "Spend Total",
+  transaction_income_total: "Income Total",
+  transaction_count: "Transaction Count",
+  transaction_spend_by_bank: "Spend by Bank Breakdown",
+  transaction_spend_by_program: "Spend by Program Breakdown",
+  transaction_summary: "Activity Summary",
+  largest_transaction: "Largest Transaction",
+  transaction_lookup: "Transaction Lookup",
+  account_balance: "Account Balance",
+  financial_comparison: "Period Comparison",
 };
 
-const MONTH_ABBR = [
-  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
-];
-
-/** Renders a single ISO transaction_date (not a start/end range) for display. */
-function formatTransactionDate(iso: string): string | undefined {
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return undefined;
-  return `${MONTH_ABBR[date.getUTCMonth()]} ${date.getUTCDate()}, ${date.getUTCFullYear()}`;
-}
-
-function Field({ label, value }: { label: string; value: ReactNode }) {
-  return (
-    <div className="flex items-baseline justify-between gap-4 py-1.5 text-sm">
-      <span className="text-muted-foreground">{label}</span>
-      <span className="text-right font-medium text-foreground">{value}</span>
-    </div>
-  );
-}
-
-function AmountTotalEvidence({
+function AmountTotalVisualCard({
   evidence,
   summary,
 }: {
@@ -48,170 +40,131 @@ function AmountTotalEvidence({
 }) {
   const rawAmount = typeof summary?.amount === "string" ? summary.amount : evidence.amount;
   const period = formatPeriod(evidence.period?.start, evidence.period?.endExclusive);
+  const isSpend = evidence.template === "transaction_spend_total";
 
   return (
-    <div className="divide-y divide-border/60">
-      {evidence.bank?.code && <Field label="Bank" value={evidence.bank.name ?? evidence.bank.code} />}
-      {evidence.programId !== undefined && <Field label="Program" value={evidence.programId} />}
-      {evidence.account?.last4 && <Field label="Account" value={`•••• ${evidence.account.last4}`} />}
-      {period && <Field label="Period" value={period} />}
-      <Field label="Source" value="Verified transaction data" />
-      {typeof rawAmount === "string" && (
-        <Field label="Result" value={formatCurrency(rawAmount, summary?.currency)} />
+    <div className="w-full space-y-3 rounded-2xl border border-border/80 bg-card/90 p-4 shadow-sm backdrop-blur-sm sm:p-5">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/50 pb-3">
+        <div className="flex items-center gap-2">
+          <div className="flex size-7 items-center justify-center rounded-lg bg-primary/10 text-primary">
+            {isSpend ? (
+              <ArrowDownRight className="size-4 text-rose-500" />
+            ) : (
+              <ArrowUpRight className="size-4 text-emerald-500" />
+            )}
+          </div>
+          <h4 className="text-sm font-semibold tracking-tight text-foreground sm:text-base">
+            {isSpend ? "Total Debit Spend" : "Total Credit Income"}
+          </h4>
+          <Badge
+            variant="outline"
+            className="h-5 gap-1 border-emerald-500/30 bg-emerald-500/10 text-[11px] font-medium text-emerald-600 dark:text-emerald-400"
+          >
+            <ShieldCheck className="size-3" />
+            Verified
+          </Badge>
+        </div>
+
+        {period && (
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <Calendar className="size-3" />
+            <span>{period}</span>
+          </div>
+        )}
+      </div>
+
+      <div className="rounded-xl border border-border/60 bg-muted/20 p-4 text-center">
+        <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+          {isSpend ? "Verified Debit Amount" : "Verified Credit Amount"}
+        </span>
+        <div className="mt-1 text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
+          {typeof rawAmount === "string" ? formatCurrency(rawAmount, summary?.currency) : "—"}
+        </div>
+      </div>
+
+      {(evidence.bank?.code || evidence.programId !== undefined || evidence.account?.last4) && (
+        <div className="flex flex-wrap items-center gap-2 pt-1 text-xs">
+          {evidence.bank?.code && (
+            <Badge variant="secondary" className="gap-1">
+              <Building2 className="size-3" />
+              {evidence.bank.name ?? evidence.bank.code}
+            </Badge>
+          )}
+          {evidence.programId !== undefined && (
+            <Badge variant="secondary" className="gap-1">
+              <Layers className="size-3" />
+              Program {evidence.programId}
+            </Badge>
+          )}
+          {evidence.account?.last4 && (
+            <Badge variant="secondary" className="gap-1 font-mono">
+              <CreditCard className="size-3" />
+              •••• {evidence.account.last4}
+            </Badge>
+          )}
+        </div>
       )}
     </div>
   );
 }
 
-function TransactionCountEvidence({ evidence }: { evidence: FinanceEvidence }) {
+function TransactionCountVisualCard({ evidence }: { evidence: FinanceEvidence }) {
   const period = formatPeriod(evidence.period?.start, evidence.period?.endExclusive);
 
   return (
-    <div className="divide-y divide-border/60">
-      {evidence.transactionType && <Field label="Type" value={evidence.transactionType} />}
-      {evidence.bank?.code && <Field label="Bank" value={evidence.bank.name ?? evidence.bank.code} />}
-      {period && <Field label="Period" value={period} />}
-      <Field label="Source" value="Verified transaction data" />
-      {typeof evidence.count === "number" && <Field label="Count" value={evidence.count} />}
-    </div>
-  );
-}
+    <div className="w-full space-y-3 rounded-2xl border border-border/80 bg-card/90 p-4 shadow-sm backdrop-blur-sm sm:p-5">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/50 pb-3">
+        <div className="flex items-center gap-2">
+          <div className="flex size-7 items-center justify-center rounded-lg bg-primary/10 text-primary">
+            <Hash className="size-4" />
+          </div>
+          <h4 className="text-sm font-semibold tracking-tight text-foreground sm:text-base">
+            Transaction Count
+          </h4>
+          <Badge
+            variant="outline"
+            className="h-5 gap-1 border-emerald-500/30 bg-emerald-500/10 text-[11px] font-medium text-emerald-600 dark:text-emerald-400"
+          >
+            <ShieldCheck className="size-3" />
+            Verified
+          </Badge>
+        </div>
 
-function RankingEvidence({ evidence }: { evidence: FinanceEvidence }) {
-  const rankings = evidence.rankings ?? [];
-  const period = formatPeriod(evidence.period?.start, evidence.period?.endExclusive);
+        {period && (
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <Calendar className="size-3" />
+            <span>{period}</span>
+          </div>
+        )}
+      </div>
 
-  return (
-    <div>
-      {period && (
-        <>
-          <Field label="Period" value={period} />
-          <Separator className="my-1" />
-        </>
-      )}
-      <Field label="Source" value="Verified transaction data" />
-      <ScrollArea className="mt-2 max-h-56">
-        <ol className="space-y-1 pr-3">
-          {rankings.map((row, index) => {
-            const label =
-              row.bankName ?? row.bankCode ?? (row.programId !== undefined ? `Program ${row.programId}` : "Unknown");
-            const key = row.bankCode ?? row.programId ?? index;
+      <div className="rounded-xl border border-border/60 bg-muted/20 p-4 text-center">
+        <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+          Total Matching Transactions
+        </span>
+        <div className="mt-1 text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+          {evidence.count ?? 0}
+        </div>
+      </div>
 
-            return (
-              <li
-                key={key}
-                className="flex items-center justify-between gap-3 rounded-xl px-3 py-2 text-sm odd:bg-muted/40"
-              >
-                <span className="flex min-w-0 items-center gap-2">
-                  <span className="text-xs tabular-nums text-muted-foreground">{index + 1}</span>
-                  <span className="truncate font-medium">{label}</span>
-                </span>
-                <span className="shrink-0 tabular-nums text-foreground">
-                  {typeof row.total === "string" ? formatCurrency(row.total) : "—"}
-                </span>
-              </li>
-            );
-          })}
-        </ol>
-      </ScrollArea>
-    </div>
-  );
-}
-
-function SummaryEvidence({ evidence }: { evidence: FinanceEvidence }) {
-  const period = formatPeriod(evidence.period?.start, evidence.period?.endExclusive);
-
-  return (
-    <div className="divide-y divide-border/60">
-      {period && <Field label="Period" value={period} />}
-      <Field label="Source" value="Verified transaction data" />
-      {typeof evidence.count === "number" && <Field label="Transactions" value={evidence.count} />}
-      {typeof evidence.debitTotal === "string" && <Field label="Debits" value={formatCurrency(evidence.debitTotal)} />}
-      {typeof evidence.creditTotal === "string" && <Field label="Credits" value={formatCurrency(evidence.creditTotal)} />}
-      {typeof evidence.net === "string" && <Field label="Net" value={formatCurrency(evidence.net)} />}
-    </div>
-  );
-}
-
-function TransactionEvidence({ evidence }: { evidence: FinanceEvidence }) {
-  const transaction = evidence.transaction;
-  const period = formatPeriod(evidence.period?.start, evidence.period?.endExclusive);
-
-  return (
-    <div className="divide-y divide-border/60">
-      {period && <Field label="Period" value={period} />}
-      <Field label="Source" value="Verified transaction data" />
-      {transaction?.transactionDate && (
-        <Field label="Date" value={formatTransactionDate(transaction.transactionDate) ?? transaction.transactionDate} />
-      )}
-      {transaction?.transactionType && <Field label="Type" value={transaction.transactionType} />}
-      {typeof transaction?.amount === "string" && <Field label="Amount" value={formatCurrency(transaction.amount)} />}
-      {transaction?.reference && <Field label="Reference" value={transaction.reference} />}
-      {transaction?.description && <Field label="Description" value={transaction.description} />}
-      {transaction?.bank?.code && <Field label="Bank" value={transaction.bank.name ?? transaction.bank.code} />}
-      {transaction?.programId !== undefined && <Field label="Program" value={transaction.programId} />}
-    </div>
-  );
-}
-
-function AccountBalanceEvidence({ evidence }: { evidence: FinanceEvidence }) {
-  return (
-    <div className="divide-y divide-border/60">
-      {evidence.bank?.code && <Field label="Bank" value={evidence.bank.name ?? evidence.bank.code} />}
-      {evidence.account?.last4 && <Field label="Account" value={`•••• ${evidence.account.last4}`} />}
-      {evidence.programId !== undefined && <Field label="Program" value={evidence.programId} />}
-      <Field label="Source" value="Verified account data" />
-      {typeof evidence.availableBalance === "string" && (
-        <Field label="Available balance" value={formatCurrency(evidence.availableBalance)} />
+      {(evidence.transactionType || evidence.bank?.code) && (
+        <div className="flex flex-wrap items-center gap-2 pt-1 text-xs">
+          {evidence.transactionType && (
+            <Badge variant="outline" className="capitalize">
+              {evidence.transactionType}
+            </Badge>
+          )}
+          {evidence.bank?.code && (
+            <Badge variant="secondary">
+              {evidence.bank.name ?? evidence.bank.code}
+            </Badge>
+          )}
+        </div>
       )}
     </div>
   );
 }
 
-function ComparisonEvidence({ evidence }: { evidence: FinanceEvidence }) {
-  const primaryPeriod = formatPeriod(evidence.primaryPeriod?.start, evidence.primaryPeriod?.endExclusive);
-  const secondaryPeriod = formatPeriod(evidence.secondaryPeriod?.start, evidence.secondaryPeriod?.endExclusive);
-  const isCount = evidence.metric === "transaction_count";
-
-  return (
-    <div className="divide-y divide-border/60">
-      {evidence.metric && <Field label="Metric" value={evidence.metric} />}
-      <Field label="Source" value="Verified transaction data" />
-      {primaryPeriod && typeof evidence.primaryValue === "string" && (
-        <Field
-          label={primaryPeriod}
-          value={isCount ? evidence.primaryValue : formatCurrency(evidence.primaryValue)}
-        />
-      )}
-      {secondaryPeriod && typeof evidence.secondaryValue === "string" && (
-        <Field
-          label={secondaryPeriod}
-          value={isCount ? evidence.secondaryValue : formatCurrency(evidence.secondaryValue)}
-        />
-      )}
-    </div>
-  );
-}
-
-function GenericEvidence({ evidence }: { evidence: FinanceEvidence }) {
-  const period = formatPeriod(evidence.period?.start, evidence.period?.endExclusive);
-
-  return (
-    <div className="divide-y divide-border/60">
-      {evidence.bank?.code && <Field label="Bank" value={evidence.bank.name ?? evidence.bank.code} />}
-      {period && <Field label="Period" value={period} />}
-      <Field label="Source" value="Verified financial records" />
-    </div>
-  );
-}
-
-/**
- * Renders evidence based on evidence.template, extensibly - unrecognized
- * templates fall back to GenericEvidence rather than crashing. Never
- * shows raw SQL or internal/sensitive ids: account_number and utr_number
- * are never part of the API contract in the first place, and only
- * last4/masked account references are ever rendered here.
- */
 export function EvidencePanel({
   evidence,
   summary,
@@ -219,44 +172,57 @@ export function EvidencePanel({
   evidence: FinanceEvidence;
   summary?: FinanceSummary;
 }) {
-  let body: ReactNode;
+  const period = formatPeriod(evidence.period?.start, evidence.period?.endExclusive);
+
+  // Render rich visual component based on query template
+  let visualContent: React.ReactNode;
 
   switch (evidence.template) {
-    case "transaction_spend_total":
-    case "transaction_income_total":
-      body = <AmountTotalEvidence evidence={evidence} summary={summary} />;
-      break;
-    case "transaction_count":
-      body = <TransactionCountEvidence evidence={evidence} />;
-      break;
     case "transaction_spend_by_bank":
     case "transaction_spend_by_program":
-      body = <RankingEvidence evidence={evidence} />;
+      visualContent = (
+        <RankingVisualCard
+          rankings={evidence.rankings ?? []}
+          period={period}
+          isProgram={evidence.template === "transaction_spend_by_program"}
+        />
+      );
       break;
+
     case "transaction_summary":
-      body = <SummaryEvidence evidence={evidence} />;
+      visualContent = <SummaryVisualCard evidence={evidence} period={period} />;
       break;
+
+    case "financial_comparison":
+      visualContent = <ComparisonVisualCard evidence={evidence} />;
+      break;
+
     case "largest_transaction":
     case "transaction_lookup":
-      body = <TransactionEvidence evidence={evidence} />;
+      visualContent = <TransactionReceiptCard evidence={evidence} />;
       break;
+
     case "account_balance":
-      body = <AccountBalanceEvidence evidence={evidence} />;
+      visualContent = <AccountBalanceCard evidence={evidence} />;
       break;
-    case "financial_comparison":
-      body = <ComparisonEvidence evidence={evidence} />;
+
+    case "transaction_count":
+      visualContent = <TransactionCountVisualCard evidence={evidence} />;
       break;
+
+    case "transaction_spend_total":
+    case "transaction_income_total":
+      visualContent = <AmountTotalVisualCard evidence={evidence} summary={summary} />;
+      break;
+
     default:
-      body = <GenericEvidence evidence={evidence} />;
+      if (evidence.rankings && evidence.rankings.length > 0) {
+        visualContent = <RankingVisualCard rankings={evidence.rankings} period={period} />;
+      } else {
+        visualContent = <AmountTotalVisualCard evidence={evidence} summary={summary} />;
+      }
   }
 
-  return (
-    <div className="animate-in fade-in slide-in-from-top-1 mt-3 rounded-2xl border border-border/60 bg-muted/30 p-4 duration-200">
-      <div className="mb-1 flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-        <Landmark className="size-3.5" />
-        {evidence.template ? (TEMPLATE_LABELS[evidence.template] ?? "Verified answer") : "Verified answer"}
-      </div>
-      {body}
-    </div>
-  );
+  return <div className="mt-3 w-full">{visualContent}</div>;
 }
+

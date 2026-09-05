@@ -190,6 +190,8 @@ named without an explicit year (e.g. "August" -> year 2026, month 8).
 Explicit date range:
 { "type": "between", "start": "YYYY-MM-DD", "end": "YYYY-MM-DD" }
 
+CRITICAL DATE RULE: If no date is specified, OMIT date_range completely.
+Do NOT output { "type": "all" }, { "type": "any" }, or null.
 Use only valid calendar dates. If no date is specified and the intent
 doesn't require one, omit date_range entirely - "all time" is a valid,
 meaningful answer for most intents.

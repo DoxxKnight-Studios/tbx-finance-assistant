@@ -9,6 +9,7 @@
     "seed": "tsx src/seed/index.ts",
     "test": "vitest run",
     "verify:gemini": "tsx scripts/verifyGeminiParser.ts",
+    "verify:ollama": "tsx scripts/verifyOllamaParser.ts",
     "test:validator": "tsx --test tests/validator.test.ts"
   },
   "keywords": [],

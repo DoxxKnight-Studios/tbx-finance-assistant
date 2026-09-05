@@ -1,15 +1,12 @@
-import { ChevronDown } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
-import { useState } from "react";
 import { AssistantAvatar } from "@/components/chat/AssistantAvatar";
 import { EvidencePanel } from "@/components/chat/EvidencePanel";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { HowAnswerDerived } from "@/components/chat/HowAnswerDerived";
+import { MessageActions } from "@/components/chat/MessageActions";
 import { formatCurrency, splitAroundAmount } from "@/lib/format";
-import { cn } from "@/lib/utils";
 import type { ChatApiResult } from "@/types/chat";
 
 export function AnswerCard({ result }: { result: ChatApiResult }) {
-  const [evidenceOpen, setEvidenceOpen] = useState(false);
   const prefersReducedMotion = useReducedMotion();
 
   const formattedAmount =
@@ -24,7 +21,7 @@ export function AnswerCard({ result }: { result: ChatApiResult }) {
       <AssistantAvatar />
 
       <div className="min-w-0 flex-1">
-        <div className="relative overflow-hidden rounded-3xl border border-border/60 bg-card/70 px-5 py-4 backdrop-blur-sm">
+        <div className="relative overflow-hidden rounded-3xl border border-border/60 bg-card/70 p-4 backdrop-blur-sm sm:p-5">
           <motion.p
             className="text-[15px] leading-relaxed text-foreground"
             initial={prefersReducedMotion ? undefined : { opacity: 0, y: 6, filter: "blur(4px)" }}
@@ -45,21 +42,20 @@ export function AnswerCard({ result }: { result: ChatApiResult }) {
           </motion.p>
 
           {result.evidence && (
-            <Collapsible open={evidenceOpen} onOpenChange={setEvidenceOpen}>
-              <CollapsibleTrigger className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--brand-ring) rounded">
-                View evidence
-                <ChevronDown
-                  className={cn(
-                    "size-3.5 transition-transform duration-200",
-                    evidenceOpen && "rotate-180",
-                  )}
-                />
-              </CollapsibleTrigger>
-              <CollapsibleContent>
-                <EvidencePanel evidence={result.evidence} summary={result.summary} />
-              </CollapsibleContent>
-            </Collapsible>
+            <EvidencePanel evidence={result.evidence} summary={result.summary} />
           )}
+
+          {result.evidence && (
+            <HowAnswerDerived evidence={result.evidence} />
+          )}
+
+          {/* Action Toolbar: Copy, Download, and System Verification */}
+          <div className="mt-3.5 flex items-center justify-between border-t border-border/40 pt-2.5">
+            <MessageActions result={result} />
+            <span className="text-[11px] font-medium text-muted-foreground/60">
+              Verified TBX Intelligence
+            </span>
+          </div>
         </div>
       </div>
     </div>

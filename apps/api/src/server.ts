@@ -1,5 +1,6 @@
 import express from "express";
 import cors from "cors";
+import { env } from "./config/env.js";
 import { checkDatabaseConnection } from "./db/health.js";
 import { createChatRouter } from "./routes/chat.js";
 import { parseFinanceIntent } from "./ai/intentParser.js";
@@ -40,6 +41,9 @@ async function main(): Promise<void> {
 
   app.listen(port, () => {
     console.log(`API running on http://localhost:${port}`);
+    console.log(
+      `AI Provider: ${env.aiProvider} (Model: ${env.aiProvider === "gemini" ? env.geminiModel : env.ollamaModel}, Thinking: ${env.ollamaThinking})`
+    );
   });
 }
 
