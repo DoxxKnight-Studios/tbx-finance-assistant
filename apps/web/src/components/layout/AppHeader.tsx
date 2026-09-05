@@ -36,13 +36,13 @@ export function AppHeader({
   apiHealth: ApiHealthState;
 }) {
   return (
-    <header className="sticky top-0 z-20 border-b border-border/60 bg-background/70 backdrop-blur-md dark:border-[#475569] dark:bg-[#475569]/95">
+    <header className="sticky top-0 z-20 border-b border-border/60 bg-background/70 backdrop-blur-md dark:border-white/10 dark:bg-black">
       <div className="mx-auto flex h-16 max-w-[1050px] items-center justify-between px-4 sm:px-6">
         <div className="flex items-center gap-4">
           <img
-            src="/logo.png"
+            src={theme === "dark" ? "/Dark_Logo.png" : "/logo.png"}
             alt="TBX Finance"
-            className="size-75 object-contain"
+            className={theme === "dark" ? "h-18 w-auto object-contain" : "size-75 object-contain"}
           />
         </div>
 
